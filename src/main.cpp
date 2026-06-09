@@ -91,7 +91,7 @@
 // ───────────────────────────────────────────────
 #define SAFETY_MARGIN_DEG       3.0f  // buffer at each end → usable: 3°–177°
 #define DEADBAND_ADC_DEFAULT    80    // ±80 ADC (~5°) — must cover stiction overshoot zone
-#define FILTER_SAMPLES          10    // moving-average depth (pot sampled every loop ~1kHz,
+#define FILTER_SAMPLES          10    // moving-average depth (pot sampled every loop ~1kHz)
                                       // filtered average updated every loop; PID runs every 50ms)
 
 // Motion watchdog
@@ -266,24 +266,50 @@ struct CalData {
 // ───────────────────────────────────────────────
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(PCA9685_ADDR);
 Preferences             prefs;
-PID                     controller;
 
 CalData       cal;
 SystemState   sysState   = SYS_RUNNING;
 RecalPhase    recalPhase = RECAL_IDLE;
 
-// PID working variables (extern declaration at top for PID::reset())
+// ── Velocity Profile ──────────────────────────────────────────────────────
+// Trapezoidal velocity profile replaces the old Trajectory Generator.
+// The profile accelerates to maxSpeedDegPerSec then decelerates to zero at
+// the target.  The hard cap MAX_VEL_DEG_S is enforced at all times — even if
+// gravity pulls the arm faster it will be opposed by the velocity PID.
+#define MAX_VEL_DEG_S   20.0f   // ABSOLUTE maximum — never exceeded
+float  maxSpeedDegPerSec = 15.0f;   // cruise speed (speed command, ≤ MAX_VEL_DEG_S)
+float  accelDegS2        = 30.0f;   // ramp rate deg/sec² (accel command)
+float  finalTargetDeg    = 90.0f;   // desired final position in degrees
+float  currentPosDeg     = 90.0f;   // profile's internal tracked position
+float  profileVelDegS    = 0.0f;    // profile's current speed (always ≥ 0)
+float  tgtVelDegS        = 0.0f;    // signed target velocity fed to inner PID
+
+// ── EMA Velocity Filter ───────────────────────────────────────────────────
+// Raw velocity = (pot - lastPot) / dt — very noisy on analog pots.
+// EMA smooths it:  filtered = alpha*raw + (1-alpha)*prev
+// alpha=0.15 balances noise rejection vs tracking speed.
+// Tune live with:  velalpha <0.05–0.5>
+float  measuredVelDegS = 0.0f;   // EMA-filtered velocity in deg/sec (+ = toward 0°)
+float  rawVelDegS      = 0.0f;   // last raw (unfiltered) velocity sample
+float  Kv_alpha        = 0.15f;  // EMA smoothing factor
+int    lastPotForVel   = -1;     // pot at last velocity sample
+unsigned long lastVelTimeMs = 0; // millis() at last velocity sample
+
+// ── Velocity PID ──────────────────────────────────────────────────────────
+// Inner-loop PID: error = tgtVelDegS - measuredVelDegS → output = pulse correction
+// Kd intentionally 0: double-derivative on a noisy analog signal = chaos.
+float  Kp_vel      = 0.4f;    // proportional gain (tune with velgain)
+float  Ki_vel      = 0.02f;   // integral gain (small — avoid noise wind-up)
+float  velIntegral = 0.0f;    // integrator state
+float  velPidOut   = 0.0f;    // velocity PID correction (pulse counts)
+
+// ── Legacy placeholders (used in a few helper calls, kept for compatibility)
 double pidInput    = 0;
-double pidSetpoint = 0;
-double finalTargetPot = 0;
-float maxSpeedDegPerSec = 15.0f;
-double pidOutput   = 0;
-// Kd=0: no derivative. Derivative on a noisy pot causes sign-flip every 50ms
-// which applies full stiction in alternating directions = violent bang-bang.
-// Kp is low: PID output stays below dirStiction, so constant stiction-floor
-// drive is used far from target (smooth constant-speed approach).
-// Only increase Kp/add Kd after verifying stable step response.
-double Kp = 0.010, Ki = 0.001, Kd = 0.000;
+double pidSetpoint = 0;   // kept for drift detection helper which updates it
+double pidOutput   = 0;   // kept for printStatus
+
+// ── velplot streaming flag ────────────────────────────────────────────────
+bool   velPlotActive = false;  // set by 'velplot' command, cleared by 'velplot off'
 
 // Runtime-tunable servo parameters (NVS-persisted)
 //
@@ -445,7 +471,6 @@ int  velCutThr = 30;
 
 // ── Velocity estimator ──
 //  Computed every PID sample (100ms). Signed: positive = pot increasing (toward 0°).
-int velocity = 0;    // ADC/100ms, updated each PID tick
 
 // ── Holdtest state machine ──
 HoldTestPhase htPhase       = HT_IDLE;
@@ -857,7 +882,6 @@ void updateRecal(int potNow) {
     }
 
     pidSetpoint = clampToSoftLimits(angleToPot(targetAngleDeg));
-    controller.reset();
 }
 
 // ═══════════════════════════════════════════════
@@ -903,9 +927,12 @@ void printStatus() {
         Serial.println(F("  Target      : *** NO TARGET SET — send: target <angle> ***"));
         Serial.printf( "  Servo pulse : %d  (neutral = 100° equiv. = deadband centre)\n", servoStop);
     } else {
-        Serial.printf("  Target      : %.1f°  (setpt=%d)\n", targetAngleDeg, (int)pidSetpoint);
-        Serial.printf("  Error       : %.1f ADC\n",          pidSetpoint - pidInput);
-        Serial.printf("  PID output  : %.2f\n",              pidOutput);
+        Serial.printf("  Target      : %.1f°  (final=%.1f°)\n", targetAngleDeg, finalTargetDeg);
+        Serial.printf("  Profile pos : %.1f°  vel=%.1f deg/s  tgt=%.1f deg/s\n",
+                      currentPosDeg, measuredVelDegS, tgtVelDegS);
+        Serial.printf("  Vel PID out : %.2f  integral=%.2f\n", velPidOut, velIntegral);
+        Serial.printf("  Max speed   : %.1f deg/s (cap=%.0f)  accel=%.1f deg/s²\n",
+                      maxSpeedDegPerSec, MAX_VEL_DEG_S, accelDegS2);
     }
     Serial.println(F("──────────────────────────────────────"));
     Serial.printf("  Cal  0°     : %d ADC\n",            cal.pot0deg);
@@ -947,6 +974,12 @@ void printHelp() {
     Serial.println(F("  ── Deadband Transition Zone ──"));
     Serial.println(F("  transzone <mult>      smooth HOLD/MOVE boundary multiplier 1–5 (default 2)"));
     Serial.println(F("  ── Velocity Control ──"));
+    Serial.println(F("  speed <deg/s>         cruise speed 1–20 deg/sec (hard cap 20)"));
+    Serial.println(F("  accel <deg/s2>        profile ramp rate 5–200 deg/sec² (default 30)"));
+    Serial.println(F("  velgain <Kp> <Ki>     velocity PID gains (default 1.5 0.05)"));
+    Serial.println(F("  velalpha <0–1>        EMA filter alpha (default 0.15, lower=smoother)"));
+    Serial.println(F("  velplot               stream raw/filtered/target velocity to Serial Plotter"));
+    Serial.println(F("  velplot off           stop velplot streaming"));
     Serial.println(F("  velcut <n>            velocity cut threshold ADC/100ms 10–100 (default 30)"));
     Serial.println(F("  ── Jog (manual move at stiction speed) ──"));
     Serial.println(F("  jog0 <ms>             jog toward 0°   for <ms> ms at stiction0 pulse"));
@@ -985,31 +1018,39 @@ void handleCommand(String cmd) {
     if (cmd.equalsIgnoreCase("status")) { printStatus(); return; }
 
     if (cmd.equalsIgnoreCase("reset")) {
-        sysState      = SYS_RUNNING;
-        htPhase       = HT_IDLE;
-        wdArmed       = false;
-        wdGraceUntil    = millis() + 2000;
-        sticRetry       = 0;
-        boostPhase      = BP_WAIT;
-        boostPhaseStart = millis();
-        boostLocked     = 0;
-        boostPhaseDirRef = 0;  // cleared so first loop sets correct direction
-        controller.reset();
+        sysState       = SYS_RUNNING;
+        htPhase        = HT_IDLE;
+        wdArmed        = false;
+        wdGraceUntil   = millis() + 2000;
+        sticRetry      = 0;
+        profileVelDegS = 0.0f;
+        tgtVelDegS     = 0.0f;
+        velIntegral    = 0.0f;
+        velPidOut      = 0.0f;
+        if (targetSet) {
+            currentPosDeg  = potToAngle(readPotFiltered());
+            lastPotForVel  = readPotFiltered();
+            lastVelTimeMs  = millis();
+            measuredVelDegS = 0.0f;
+        }
         Serial.println(F("[INFO] Fault cleared — resuming (watchdog grace 2s)"));
         return;
     }
 
     if (cmd.equalsIgnoreCase("stop")) {
-        targetSet = false;
-        wdArmed   = false;
-        htPhase   = HT_IDLE;   // abort holdtest if active
+        targetSet      = false;
+        wdArmed        = false;
+        htPhase        = HT_IDLE;
+        profileVelDegS = 0.0f;
+        tgtVelDegS     = 0.0f;
+        velIntegral    = 0.0f;
+        velPidOut      = 0.0f;
         if (sysState == SYS_SLOWTEST || sysState == SYS_RUNNING ||
             sysState == SYS_HOLDTEST)
             sysState = SYS_RUNNING;
-        controller.reset();
         pwm.setPWM(0, 0, (uint16_t)servoStop);
         Serial.println(F("[INFO] Target cleared — servo idle at neutral"));
-        Serial.printf("[INFO] Servo pulse = %d (100° equiv., deadband centre)\n", servoStop);
+        Serial.printf("[INFO] Servo pulse = %d (deadband centre)\n", servoStop);
         return;
     }
     if (cmd.equalsIgnoreCase("resume")) {
@@ -1027,7 +1068,6 @@ void handleCommand(String cmd) {
         recomputeCalibration(DEFAULT_POT_0DEG, DEFAULT_POT_180DEG);
         saveCalToFlash();
         pidSetpoint = clampToSoftLimits(angleToPot(targetAngleDeg));
-        controller.reset();
         Serial.println(F("[CAL] Factory calibration restored and saved"));
         return;
     }
@@ -1042,11 +1082,12 @@ void handleCommand(String cmd) {
             Serial.printf("[INFO] maxSpeed = %.1f deg/sec\n", maxSpeedDegPerSec); return;
         }
         float spd = cmd.substring(sp + 1).toFloat();
-        if (spd < 1.0f || spd > 300.0f) {
-            Serial.println(F("[ERROR] Speed must be between 1 and 300 deg/sec")); return;
+        if (spd < 1.0f || spd > MAX_VEL_DEG_S) {
+            Serial.printf("[ERROR] Speed must be 1–%.0f deg/sec (hard cap)\n", MAX_VEL_DEG_S); return;
         }
         maxSpeedDegPerSec = spd;
-        Serial.printf("[INFO] Trajectory speed set to %.1f deg/sec\n", maxSpeedDegPerSec);
+        Serial.printf("[INFO] Cruise speed set to %.1f deg/sec (cap=%.0f)\n",
+                      maxSpeedDegPerSec, MAX_VEL_DEG_S);
         return;
     }
 
@@ -1059,36 +1100,29 @@ void handleCommand(String cmd) {
             Serial.printf("[WARN] %.1f° clamped to %.1f° — %s\n",
                           ang, r.clampedAngle, r.reason);
         }
-        targetAngleDeg = r.clampedAngle;
-        finalTargetPot = r.clampedPot;
-        pidSetpoint    = (double)readPotFiltered(); // Start trajectory from current position
+        targetAngleDeg  = r.clampedAngle;
+        finalTargetDeg  = r.clampedAngle;
+        // Initialise profile from current physical position
+        currentPosDeg   = potToAngle(readPotFiltered());
+        profileVelDegS  = 0.0f;
+        tgtVelDegS      = 0.0f;
+        velIntegral     = 0.0f;
+        velPidOut       = 0.0f;
         wdArmed         = false;
         wdGraceUntil    = millis() + 2000;
         sticRetry       = 0;
-        boostPhase      = BP_WAIT;
-        boostPhaseStart = millis();
-        boostLocked     = 0;
         targetSet       = true;
-        controller.reset();
-        Serial.printf("[PID] Target: %.1f°  → final target ADC %d\n",
-                      targetAngleDeg, (int)finalTargetPot);
+        // Legacy compat
+        pidSetpoint     = (double)r.clampedPot;
+        lastPotForVel   = readPotFiltered();
+        lastVelTimeMs   = millis();
+        measuredVelDegS = 0.0f;
+        Serial.printf("[VEL] Target: %.1f° — profile starts at %.1f°  (max %.0f deg/s)\n",
+                      finalTargetDeg, currentPosDeg, min(maxSpeedDegPerSec, MAX_VEL_DEG_S));
         return;
     }
 
-    if (cmd.startsWith("tune")) {
-        int s1 = cmd.indexOf(' ');
-        int s2 = (s1 >= 0) ? cmd.indexOf(' ', s1 + 1) : -1;
-        int s3 = (s2 >= 0) ? cmd.indexOf(' ', s2 + 1) : -1;
-        if (s1 < 0 || s2 < 0 || s3 < 0) {
-            Serial.println(F("[ERROR] Usage: tune <Kp> <Ki> <Kd>")); return;
-        }
-        Kp = cmd.substring(s1 + 1, s2).toFloat();
-        Ki = cmd.substring(s2 + 1, s3).toFloat();
-        Kd = cmd.substring(s3 + 1).toFloat();
-        controller.setGains(Kp, Ki, Kd);
-        Serial.printf("[PID] New gains — Kp=%.4f  Ki=%.4f  Kd=%.4f\n", Kp, Ki, Kd);
-        return;
-    }
+
 
     if (cmd.startsWith("deadband")) {
         int sp = cmd.indexOf(' ');
@@ -1119,7 +1153,6 @@ void handleCommand(String cmd) {
         servoStop = s;
         saveSettingsToFlash();
         pwm.setPWM(0, 0, (uint16_t)servoStop);
-        controller.reset();
         Serial.printf("[CFG] servoStop = %d — applied and saved\n", servoStop);
         return;
     }
@@ -1177,7 +1210,6 @@ void handleCommand(String cmd) {
     if (cmd.equalsIgnoreCase("notarget")) {
         targetSet   = false;
         wdArmed     = false;
-        controller.reset();
         pwm.setPWM(0, 0, (uint16_t)servoStop);
         Serial.println(F("[INFO] Target cleared — servo IDLE at neutral (no PID)"));
         return;
@@ -1239,8 +1271,8 @@ void handleCommand(String cmd) {
         // Set up PID target first
         ReachResult r = checkReachability(ang);
         targetAngleDeg  = r.clampedAngle;
-        finalTargetPot  = r.clampedPot;
-        pidSetpoint     = (double)readPotFiltered(); // Start trajectory from current position
+        finalTargetDeg  = r.clampedAngle;
+        currentPosDeg   = potToAngle(readPotFiltered());
         htTargetAngle   = r.clampedAngle;
         wdArmed         = false;
         wdGraceUntil    = millis() + 2000;
@@ -1254,7 +1286,6 @@ void handleCommand(String cmd) {
         htStartPulse    = servoStop; // Will be captured upon stabilization
         htStableStart   = millis();
         sysState        = SYS_RUNNING; // Use normal PID to approach target!
-        controller.reset();
         Serial.printf("[GRAVTEST] Moving to %.1f° — sweep starts after %dms stable in deadband\n",
                       htTargetAngle, HT_STABLE_MS);
         return;
@@ -1314,6 +1345,61 @@ void handleCommand(String cmd) {
         velCutThr = vct;
         saveSettingsToFlash();
         Serial.printf("[CFG] velCutThr = %d ADC/100ms — saved\n", velCutThr);
+        return;
+    }
+
+    if (cmd.startsWith("accel")) {
+        int sp = cmd.indexOf(' ');
+        if (sp == -1) {
+            Serial.printf("[INFO] accel = %.1f deg/sec²\n", accelDegS2); return;
+        }
+        float a = cmd.substring(sp + 1).toFloat();
+        if (a < 5.0f || a > 200.0f) {
+            Serial.println(F("[ERROR] accel must be 5–200 deg/sec²")); return;
+        }
+        accelDegS2 = a;
+        Serial.printf("[CFG] Profile acceleration = %.1f deg/sec²\n", accelDegS2);
+        return;
+    }
+
+    if (cmd.startsWith("velalpha")) {
+        int sp = cmd.indexOf(' ');
+        if (sp == -1) {
+            Serial.printf("[INFO] velalpha = %.3f\n", Kv_alpha); return;
+        }
+        float a = cmd.substring(sp + 1).toFloat();
+        if (a < 0.01f || a > 1.0f) {
+            Serial.println(F("[ERROR] velalpha must be 0.01–1.0")); return;
+        }
+        Kv_alpha = a;
+        Serial.printf("[CFG] EMA alpha = %.3f  (lower=smoother, higher=faster)\n", Kv_alpha);
+        return;
+    }
+
+    if (cmd.startsWith("velgain")) {
+        int s1 = cmd.indexOf(' ');
+        int s2 = (s1 >= 0) ? cmd.indexOf(' ', s1 + 1) : -1;
+        if (s1 < 0 || s2 < 0) {
+            Serial.printf("[INFO] velgain Kp=%.3f Ki=%.3f\n", Kp_vel, Ki_vel); return;
+        }
+        Kp_vel = cmd.substring(s1 + 1, s2).toFloat();
+        Ki_vel = cmd.substring(s2 + 1).toFloat();
+        velIntegral = 0.0f;
+        Serial.printf("[CFG] Velocity PID gains — Kp=%.3f  Ki=%.3f\n", Kp_vel, Ki_vel);
+        return;
+    }
+
+    if (cmd.startsWith("velplot")) {
+        String arg = cmd.substring(7);
+        arg.trim();
+        if (arg.equalsIgnoreCase("off") || arg.equalsIgnoreCase("0")) {
+            velPlotActive = false;
+            Serial.println(F("[INFO] velplot OFF"));
+        } else {
+            velPlotActive = true;
+            Serial.println(F("[INFO] velplot ON — streaming: raw_vel  filt_vel  tgt_vel  (deg/sec)"));
+            Serial.println(F("[INFO] Type 'velplot off' to stop"));
+        }
         return;
     }
 
@@ -1432,14 +1518,7 @@ void setup() {
 
     int startPot = (int)(filterSum / FILTER_SAMPLES);
     pidInput  = startPot;
-    velocity  = 0;   // primed to 0; lazy-init in loop() avoids first-tick spike
-
-    controller.init(Kp, Ki, Kd,
-                    -(double)SERVO_DRIVE, (double)SERVO_DRIVE,
-                    -35.0, 35.0,   // iMax raised to 35 — must exceed max stiction (22) so
-                    20);            // integral alone can overcome stiction near target
-
-    pwm.setPWM(0, 0, (uint16_t)servoStop);
+    
 
     Serial.printf("[BOOT] Arm position: %.1f°  (pot=%d)\n", potToAngle(startPot), startPot);
     Serial.printf("[BOOT] Servo neutral: %d pulse counts (100° equiv.)\n", servoStop);
@@ -1452,12 +1531,53 @@ void setup() {
 // ═══════════════════════════════════════════════
 //  LOOP
 // ═══════════════════════════════════════════════
+//  VELOCITY MEASUREMENT (EMA-filtered)
+//
+//  Called every loop cycle.  Updates:
+//    rawVelDegS      — instantaneous deg/sec from pot delta
+//    measuredVelDegS — EMA-smoothed version
+//
+//  Sign convention: POSITIVE = pot increasing = arm moving toward 0°
+//                   NEGATIVE = pot decreasing = arm moving toward 180°
+// ═══════════════════════════════════════════════
+void updateVelocityMeasurement(int potRaw) {
+    unsigned long nowMs = millis();
+    if (lastPotForVel < 0) {
+        // First call — initialise, no velocity yet
+        lastPotForVel  = potRaw;
+        lastVelTimeMs  = nowMs;
+        return;
+    }
+    float dtSec = (float)(nowMs - lastVelTimeMs) / 1000.0f;
+    if (dtSec < 0.020f) return;  // don't compute on < 20 ms intervals (reduce noise)
+
+    int deltaPot = potRaw - lastPotForVel;
+    // Stationary deadband: ignore tiny ADC fluctuations (<= 2 counts) over 20ms
+    if (abs(deltaPot) <= 2) {
+        deltaPot = 0;
+    }
+
+    float adcPerSec = (float)deltaPot / dtSec;
+    // Convert ADC/sec → deg/sec  (adcPerDeg is negative for inverted pot)
+    rawVelDegS = (fabsf(cal.adcPerDeg) > 0.01f)
+                 ? adcPerSec / cal.adcPerDeg   // preserves sign correctly
+                 : 0.0f;
+    // EMA filter
+    measuredVelDegS = Kv_alpha * rawVelDegS
+                      + (1.0f - Kv_alpha) * measuredVelDegS;
+
+    lastPotForVel = potRaw;
+    lastVelTimeMs = nowMs;
+}
+
+// ═══════════════════════════════════════════════
 void loop() {
 
     if (Serial.available())
         handleCommand(Serial.readStringUntil('\n'));
 
     int potRaw = readPotFiltered();
+    updateVelocityMeasurement(potRaw);
 
     if (sysState == SYS_RECAL_ACTIVE) {
         updateRecal(potRaw);
@@ -1599,7 +1719,6 @@ void loop() {
             htPhase = HT_IDLE;
             sysState = SYS_RUNNING;
             targetSet = true;
-            controller.reset();
             wdArmed = false;
             wdGraceUntil = millis() + 2000;
             driftRefValid = false;
@@ -1616,7 +1735,6 @@ void loop() {
             htPhase  = HT_IDLE;
             sysState = SYS_RUNNING;
             targetSet = true;
-            controller.reset();
             wdArmed = false;
             wdGraceUntil = millis() + 2000;
             driftRefValid = false;
@@ -1647,7 +1765,8 @@ void loop() {
         if (millis() - lastIdleMsg >= 100) {
             lastIdleMsg = millis();
             int p = readPotFiltered();
-            Serial.printf("[IDLE] pot=%4d  ang=%5.1f°  No target\n", p, potToAngle(p));
+            Serial.printf("[IDLE] pot=%4d  ang=%5.1f°  raw=%+5.1f  filt=%+5.1f deg/s  No target\n",
+                          p, potToAngle(p), rawVelDegS, measuredVelDegS);
         }
         return;
     }
@@ -1671,46 +1790,130 @@ void loop() {
     pidSetpoint = clampToSoftLimits((int)pidSetpoint);
     pidInput    = (double)potRaw;
 
-    // ── Trajectory Generator (Slew Rate Limiter) ──
-    static unsigned long lastTrajUpdate = millis();
-    unsigned long now = millis();
-    unsigned long dt = now - lastTrajUpdate;
-    lastTrajUpdate = now;
+    // ── Trapezoidal Velocity Profile ─────────────────────────────────────
+    // Accelerates from 0 to maxSpeedDegPerSec, cruises, then decelerates
+    // to zero exactly at finalTargetDeg.  The signed result (tgtVelDegS)
+    // is fed to the velocity PID as its setpoint.
+    //
+    // Hard cap at MAX_VEL_DEG_S (20 deg/sec):  even if |tgtVelDegS| is
+    // somehow too large, it is clamped before reaching the PID.
+    static unsigned long lastProfileMs = 0;
+    {
+        unsigned long nowP = millis();
+        float dtP = (lastProfileMs == 0) ? 0.0f : (float)(nowP - lastProfileMs) / 1000.0f;
+        lastProfileMs = nowP;
+        if (dtP > 0.1f) dtP = 0.0f; // Prevent dt explosion after idle/fault pause
 
-    if (targetSet && sysState == SYS_RUNNING) {
-        if (dt > 0 && pidSetpoint != finalTargetPot) {
-            float adcPerDegree = fabsf((float)(potHi - potLo)) / 180.0f;
-            float maxStepADC = (maxSpeedDegPerSec * adcPerDegree * (float)dt) / 1000.0f;
+        if (targetSet && sysState == SYS_RUNNING && dtP > 0.0f) {
+            float distRemain = finalTargetDeg - currentPosDeg;  // signed deg
+            float distAbs    = fabsf(distRemain);
+            float dir        = (distRemain >= 0.0f) ? 1.0f : -1.0f;
 
-            if (fabs(finalTargetPot - pidSetpoint) <= maxStepADC) {
-                pidSetpoint = finalTargetPot;
-            } else if (finalTargetPot > pidSetpoint) {
-                pidSetpoint += maxStepADC;
+            // Failsafe: Check if the physical arm has reached or overshot the final target.
+            // If it has, terminate the virtual profile immediately to prevent the controller
+            // from driving the arm further away while blindly finishing the virtual path.
+            float physDistRemain = finalTargetDeg - potToAngle(potRaw);
+            bool physOvershot = (dir > 0.0f && physDistRemain <= 0.0f) || 
+                                (dir < 0.0f && physDistRemain >= 0.0f);
+
+            if (distAbs <= 0.5f || physOvershot) {
+                // Arrived or physical overshoot
+                profileVelDegS = 0.0f;
+                currentPosDeg  = finalTargetDeg;
+                tgtVelDegS     = 0.0f;
             } else {
-                pidSetpoint -= maxStepADC;
+                // Ideal Velocity Profile: v = sqrt(2 * a * d)
+                // This curve mathematically guarantees we reach 0 speed exactly at the target.
+                float maxAllowedSpeed = sqrtf(2.0f * accelDegS2 * distAbs);
+                
+                // Attempt to accelerate
+                profileVelDegS += accelDegS2 * dtP;
+                
+                // Cap to cruise speed
+                float cap = min(maxSpeedDegPerSec, MAX_VEL_DEG_S);
+                if (profileVelDegS > cap) profileVelDegS = cap;
+                
+                // If accelerating exceeds the ideal braking curve, clamp it to the braking curve
+                if (profileVelDegS > maxAllowedSpeed) {
+                    profileVelDegS = maxAllowedSpeed;
+                }
+                
+                // Ensure it crawls the last tiny bit instead of getting mathematically stuck at v=0.0001
+                if (profileVelDegS < 1.0f) profileVelDegS = 1.0f;
+
+                tgtVelDegS  = dir * profileVelDegS;
+                currentPosDeg += tgtVelDegS * dtP;
             }
+        } else if (!targetSet) {
+            profileVelDegS = 0.0f;
+            tgtVelDegS     = 0.0f;
         }
     }
 
     int servoSignal = servoStop;
     bool servoActive = false;
 
-    // ── PID compute ──
-    pidSetpoint = clampToSoftLimits((int)pidSetpoint);
-    pidInput    = (double)potRaw;
-    pidOutput   = controller.compute(pidInput, pidSetpoint);
+    // ── Position error (degrees) — used for deadband / zone logic ─────────
+    float posDeg      = potToAngle(potRaw);
+    float posErrDeg   = finalTargetDeg - posDeg;          // signed degrees remaining
+    float absErrDeg   = fabsf(posErrDeg);
+    float absErrADC   = absErrDeg * fabsf(cal.adcPerDeg); // in ADC counts for zone checks
+    int   moveSign    = (tgtVelDegS >= 0.0f) ? 1 : -1;   // direction from profile
+    if (tgtVelDegS == 0.0f)
+        moveSign = (posErrDeg >= 0.0f) ? 1 : -1;          // fallback when profile idle
 
-    float error       = (float)(pidSetpoint - (double)potRaw);
-    float absError    = fabsf(error);
-    int   moveSign    = (error >= 0.0f) ? 1 : -1;
-    bool  inDeadband  = (absError <= (float)deadbandADC);
-    
+    // Failsafe: Force moveSign to point toward target if the arm is significantly displaced.
+    // E.g., if trajectory is going to 180 (moveSign +1), but arm was pushed past 180,
+    // posErrDeg will be negative. The arm MUST be driven back to target.
+    if ((moveSign > 0 && posErrDeg < 0.0f) || (moveSign < 0 && posErrDeg > 0.0f)) {
+        moveSign = (posErrDeg >= 0.0f) ? 1 : -1;
+    }
+
+    bool  inDeadband   = (absErrDeg * fabsf(cal.adcPerDeg) <= (float)deadbandADC);
     float transzoneADC = (float)(transzoneMult * deadbandADC);
-    bool  inTranszone  = (!inDeadband && absError <= transzoneADC);
+    bool  inTranszone  = (!inDeadband && absErrADC <= transzoneADC);
+
+    // Legacy compat for drift detection
+    pidSetpoint = (double)clampToSoftLimits(angleToPot(finalTargetDeg));
+    pidInput    = (double)potRaw;
+    float error = (float)(pidSetpoint - pidInput);  // ADC error (for gravity/drive calcs)
+    float absError = fabsf(error);
+
+    // ── Velocity PID (inner loop) ─────────────────────────────────────────
+    // Error = target velocity (from profile) minus measured velocity.
+    // Output (velPidOut) is a pulse-count correction added to the drive baseline.
+    static unsigned long lastPidLoopMs = 0;
+    unsigned long nowPidLoop = millis();
+    float dtVelPid = (lastPidLoopMs == 0) ? 0.02f : (float)(nowPidLoop - lastPidLoopMs) / 1000.0f;
+    lastPidLoopMs = nowPidLoop;
+    if (dtVelPid <= 0.0f || dtVelPid > 0.1f) dtVelPid = 0.02f; // Prevent lag spikes
+
+    if (inDeadband) {
+        velIntegral = 0.0f;
+        velPidOut   = 0.0f;
+        tgtVelDegS  = 0.0f;
+        profileVelDegS = 0.0f;
+    } else {
+        float velErr    = tgtVelDegS - measuredVelDegS;
+        velIntegral     = velIntegral * 0.9f; // Leaky integrator (decays to 0)
+        velIntegral    += Ki_vel * velErr * dtVelPid;
+        velIntegral     = constrain(velIntegral, (float)-SERVO_DRIVE, (float)SERVO_DRIVE);  // anti-windup
+        velPidOut       = Kp_vel * velErr + velIntegral;
+    }
+    pidOutput = (double)velPidOut;  // for printStatus display
 
     // Gravity calculations for feedforward baseline
     float gravAngle  = potToAngle(potRaw);
-    int   gravOffset = (int)round(kGravity * sinf(DEG_TO_RAD * (gravAngle - 90.0f)));
+    
+    // Dynamic Gravity Boost at extremes to compensate for mechanical linkage leverage loss
+    float absAngleFromCenter = fabsf(gravAngle - 90.0f); // 0 at center, 90 at extremes
+    float gravBoostMult = 1.0f;
+    if (absAngleFromCenter > 45.0f) {
+        // Boost from 1.0x at 45° to 1.5x at 90°
+        gravBoostMult = 1.0f + 0.5f * ((absAngleFromCenter - 45.0f) / 45.0f);
+    }
+    
+    int   gravOffset = (int)round(kGravity * gravBoostMult * sinf(DEG_TO_RAD * (gravAngle - 90.0f)));
     int   gravDir    = (gravOffset > 0) ? 1 : (gravOffset < 0 ? -1 : 0);
     int   holdDrive  = constrain(gravOffset + gravDir * sticBoostHold,
                                  -servoStictionTo180, servoStictionTo0);
@@ -1718,33 +1921,35 @@ void loop() {
 
     if (inDeadband) {
         // Integrator gate & reset
-        controller.resetIntegral();
-        boostPhase = BP_WAIT;
-
         servoSignal = constrain(servoStop - holdDrive,
                                 servoStop - SERVO_DRIVE,
                                 servoStop + SERVO_DRIVE);
         servoActive = false;
     } else {
-        int dirStiction = (moveSign > 0) ? servoStictionTo0 : servoStictionTo180;
+        // 1. Correct stiction mapping (Kinetic Friction)
+        int dirStiction = (moveSign > 0) ? servoStictionTo180 : servoStictionTo0;
 
-        // Velocity-based drive cut (wrong way fast)
-        bool wrongWayFast = (moveSign > 0 && velocity < -velCutThr) ||
-                            (moveSign < 0 && velocity >  velCutThr);
+        // The Trajectory Generator naturally decelerates the target velocity (tgtVelDegS).
+        // Therefore, we must maintain the kinetic friction feedforward (dirStiction) fully
+        // active so the arm doesn't get stuck during the slow deceleration phase.
+        int activeStiction = dirStiction;
 
-        int boostNow = sticBoost; // Max boost
-        if (wrongWayFast) {
-            boostNow = 0; // Cut drive if going wrong way too fast
-        } else if (targetDecelADC > 0 && absError < (float)targetDecelADC) {
-            // Smoothly scale boost proportional to error (Rubber Band effect!)
-            boostNow = (int)(sticBoost * absError / (float)targetDecelADC);
-        }
-
-        int effectiveDrive = constrain(dirStiction + boostNow, dirStiction, SERVO_DRIVE);
+        int baseDriveMag = constrain(activeStiction, 0, SERVO_DRIVE);
         
-        // Calculate the theoretical MOVE pulse relative to gravity baseline
-        int moveDrive = (moveSign > 0) ? baselinePulse - effectiveDrive
-                                       : baselinePulse + effectiveDrive;
+        // 2. Add for 180° (Higher pulse), Subtract for 0° (Lower pulse)
+        int moveDrive = (moveSign > 0) ? baselinePulse + baseDriveMag
+                                       : baselinePulse - baseDriveMag;
+
+        // 3. Velocity Feedforward & PID Correction
+        float Kv_ff = 1.0f; // Feedforward: 1 pulse per deg/sec (proactive drive)
+        int v_ff = (int)(tgtVelDegS * Kv_ff);
+        
+        int velCorr = constrain((int)velPidOut + v_ff, -SERVO_DRIVE, SERVO_DRIVE);
+        
+        // ADD the velocity correction. 
+        // If velCorr > 0 (need more speed towards 180), adding makes the pulse higher.
+        // If velCorr < 0 (need more speed towards 0), adding negative makes the pulse lower.
+        moveDrive = moveDrive + velCorr;
 
         if (inTranszone) {
             // Smoothly interpolate between MOVE and HOLD
@@ -1763,6 +1968,15 @@ void loop() {
                             servoStop - SERVO_DRIVE,
                             servoStop + SERVO_DRIVE);
 
+    // ── Electronic Shock Absorber (EMA Slew Limiter) ──
+    // Smooths out instantaneous step-functions to prevent mechanical linkage whipping
+    static float smoothedSignal = servoStop;
+    // Fast attack/release filter: 20% new signal, 80% history per loop cycle
+    smoothedSignal = 0.2f * (float)servoSignal + 0.8f * smoothedSignal;
+    
+    // Safety clamp just in case
+    int finalOutputPulse = constrain((int)round(smoothedSignal), servoStop - SERVO_DRIVE, servoStop + SERVO_DRIVE);
+
     // ── Direction-aware watchdog ──
     // Grace period: after reset/target commands, don't arm for 2 s.
     // This prevents false "wrong direction" faults on the first tick
@@ -1771,10 +1985,7 @@ void loop() {
     // a stable boost level. During BP_WAIT and BP_RAMP the arm is still trying
     // to find enough power to move; faulting here would interrupt the ramp.
     bool wdGraceActive = (millis() < wdGraceUntil);
-    bool wdShouldArm   = !wdGraceActive
-                         && servoActive
-                         && (boostPhase == BP_LOCKED)          // only once motion confirmed
-                         && (fabsf(error) > (float)(2 * deadbandADC));
+    bool wdShouldArm   = false; // watchdog disabled (velocity profile handles speed limiting)
     updateWatchdog(potRaw, wdShouldArm, moveSign);
 
     // ── Drift detection (only while holding) ──
@@ -1785,7 +1996,7 @@ void loop() {
     // Dramatically lowers the probability of power-noise I2C glitches.
     static int           lastServoSignal = -1;
     static unsigned long lastServoWrite  = 0;
-    uint16_t sigToWrite = (sysState == SYS_RUNNING) ? (uint16_t)servoSignal
+    uint16_t sigToWrite = (sysState == SYS_RUNNING) ? (uint16_t)finalOutputPulse
                                                      : (uint16_t)servoStop;
     if ((int)sigToWrite != lastServoSignal || millis() - lastServoWrite >= 20) {
         pwm.setPWM(0, 0, sigToWrite);
@@ -1805,12 +2016,12 @@ void loop() {
     // ── HOLDTEST Move Phase Intercept ──
     if (htPhase == HT_MOVE && sysState == SYS_RUNNING) {
         float absError = fabsf(error);
-        if (absError > (float)(3 * deadbandADC) || abs(velocity) > 15) {
+        if (absError > (float)(3 * deadbandADC) || fabsf(measuredVelDegS) > 5.0f) {
             htStableStart = millis(); // Not stable, reset timer
         } else if (millis() - htStableStart >= HT_STABLE_MS) {
             // Stable! Start the sweep!
             htPhase        = HT_SWEEP;
-            htStartPulse   = servoSignal;  // The naturally settled equilibrium pulse!
+            htStartPulse   = finalOutputPulse;  // The naturally settled equilibrium pulse!
             htCurrentPulse = htStartPulse;
             htPotRef       = potRaw;
             htLastStep     = millis();
@@ -1832,8 +2043,14 @@ void loop() {
         const char* zoneTag = inDeadband  ? "[HOLD]"
                             : inTranszone ? "[ZTRANS]"
                                           : "[MOVE]";
-        Serial.printf("[RUN] pot=%4d  ang=%5.1f\u00b0  err=%6.1f  vel=%+4d  pid=%6.2f  pulse=%3d  %s\n",
-                      potRaw, potToAngle(potRaw), error, velocity, pidOutput,
-                      servoSignal, zoneTag);
+        Serial.printf("[RUN] pot=%4d  ang=%5.1f°  tvl=%+6.1f  vel=%+6.1f  raw=%+6.1f  pid=%5.1f  pulse=%3d  %s\n",
+                      potRaw, potToAngle(potRaw),
+                      tgtVelDegS, measuredVelDegS, rawVelDegS,
+                      velPidOut, finalOutputPulse, zoneTag);
+        // velplot streaming (every 50ms when active)
+        if (velPlotActive) {
+            Serial.printf("VELPLOT %.2f %.2f %.2f\n",
+                          rawVelDegS, measuredVelDegS, tgtVelDegS);
+        }
     }
 }
