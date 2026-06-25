@@ -82,6 +82,8 @@ void printHelp() {
     Serial.println(F("  stiction0 <id> <n>    set stiction offset toward 0°"));
     Serial.println(F("  stiction180 <id> <n>  set stiction offset toward 180°"));
     Serial.println(F("  kgrav <id> <float>    set gravity compensation gain"));
+    Serial.println(F("  cal0 <id> <adc>       manually set 0° endpoint ADC"));
+    Serial.println(F("  cal180 <id> <adc>     manually set 180° endpoint ADC"));
     Serial.println(F("  recal0 <id>           auto-calibrate pot at 0° endpoint"));
     Serial.println(F("  recal180 <id>         auto-calibrate pot at 180° endpoint"));
     Serial.println(F("  status                print active settings for all axes"));
@@ -196,6 +198,18 @@ void handleCommand(String cmd) {
         ax.servoStictionTo180 = valStr.toInt();
         ax.saveSettingsToFlash();
         Serial.printf("[CFG] Axis %d stictionTo180 = %d\n", ax_id, ax.servoStictionTo180);
+        return;
+    }
+    if (action == "cal0") {
+        if (valStr == "") { Serial.println(F("[ERROR] cal0 requires ADC value")); return; }
+        ax.recomputeCalibration(valStr.toInt(), ax.cal.pot180deg);
+        ax.saveCalToFlash();
+        return;
+    }
+    if (action == "cal180") {
+        if (valStr == "") { Serial.println(F("[ERROR] cal180 requires ADC value")); return; }
+        ax.recomputeCalibration(ax.cal.pot0deg, valStr.toInt());
+        ax.saveCalToFlash();
         return;
     }
     if (action == "recal0") { ax.startRecal(0); return; }

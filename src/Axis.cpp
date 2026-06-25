@@ -306,8 +306,8 @@ void Axis::update() {
         if (millis() - lastIdleMsg >= 100) {
             lastIdleMsg = millis();
             int p = readPotFiltered();
-            Serial.printf("[IDLE] pot=%4d  ang=%5.1f°  raw=%+5.1f  filt=%+5.1f deg/s  No target\n",
-                          p, potToAngle(p), rawVelDegS, measuredVelDegS);
+            Serial.printf("[S%d][IDLE] pot=%4d  ang=%5.1f°  raw=%+5.1f  filt=%+5.1f deg/s  No target\n",
+                          this->id, p, potToAngle(p), rawVelDegS, measuredVelDegS);
         }
         return;
     }
@@ -584,8 +584,8 @@ void Axis::update() {
         const char* zoneTag = inDeadband  ? "[HOLD]"
                             : inTranszone ? "[ZTRANS]"
                                           : "[MOVE]";
-        Serial.printf("[RUN] pot=%4d  ang=%5.1f°  tvl=%+6.1f  vel=%+6.1f  raw=%+6.1f  pid=%5.1f  pulse=%3d  %s\n",
-                      potRaw, potToAngle(potRaw),
+        Serial.printf("[S%d][RUN] pot=%4d  ang=%5.1f°  tvl=%+6.1f  vel=%+6.1f  raw=%+6.1f  pid=%5.1f  pulse=%3d  %s\n",
+                      this->id, potRaw, potToAngle(potRaw),
                       tgtVelDegS, measuredVelDegS, rawVelDegS,
                       velPidOut, finalOutputPulse, zoneTag);
         // velplot streaming (every 50ms when active)
