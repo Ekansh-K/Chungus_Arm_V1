@@ -137,6 +137,13 @@ public:
     float velPidOut = 0.0f;
     float Kp_vel = 0.4f;
     float Ki_vel = 0.02f;
+    // Time-constant for leaky integrator decay. Replaces the old per-tick 0.9f
+    // factor so the memory length is independent of loop speed.
+    float velIntegralTauSec = 0.5f;
+    // Smoothed velocity setpoint fed to PI — keeps smoothing upstream of the
+    // closed loop so the post-PI EMA filter is no longer needed.
+    float smoothedTgtVelDegS = 0.0f;
+    float velSmoothAlpha = 0.3f;   // how snappy the velocity reference is
     double pidSetpoint = 0;
     double pidInput = 0;
     double pidOutput = 0;
@@ -243,7 +250,13 @@ public:
     unsigned long lastIdleMsg = 0;
     unsigned long lastProfileMs = 0;
     unsigned long lastPidLoopMs = 0;
-    float smoothedSignal = 0; // Initialize in constructor or update
+    // NOTE: smoothedSignal (post-PI EMA) is intentionally removed — smoothing
+    // is now applied upstream on the velocity reference (smoothedTgtVelDegS).
+    // If a local variable is ever needed temporarily, declare it inline.
+
+    // dt histogram buckets: 0-5ms, 5-10ms, ..., >35ms (8 buckets, 5ms wide)
+    static const int DT_BUCKETS = 8;
+    uint32_t dtHistogram[DT_BUCKETS] = {0};
     unsigned long lastI2CCheck = 0;
     unsigned long lastPrint = 0;
     unsigned long lastRecalPrint = 0;
@@ -291,6 +304,9 @@ public:
     void setTarget(float angle);
     void setServoStop(int pulse);
     void startSlowtest(int dir);
+
+    // Diagnostic: dump and clear the dt histogram over serial.
+    void printDtHistogram();
 };
 
 #endif

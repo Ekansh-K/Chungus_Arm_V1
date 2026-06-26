@@ -270,6 +270,13 @@ void handleCommand(String cmd) {
     if (action == "recal180") { ax.startRecal(1); return; }
     if (action == "recal2") { ax.startRecal(2); return; }
     
+    if (action == "dtstats") {
+        if (ax_id >= 0 && ax_id <= 1) {
+            axes[ax_id].printDtHistogram();
+        }
+        return;
+    }
+    
     Serial.println(F("[ERROR] Unknown command or bad syntax. Type 'help'."));
 }
 
@@ -315,13 +322,27 @@ void setup() {
     Serial.println(F("[OK] System running. Type 'help' for commands."));
 }
 
-void loop() {
-    if (Serial.available()) {
-        String cmd = Serial.readStringUntil('\n');
-        handleCommand(cmd);
+// ── Non-blocking serial reader ───────────────────────────────────────────────────────
+// Fix 5: Replaces Serial.readStringUntil('\n') which blocks for up to
+// 1000 ms (default timeout) on a slow/partial command, stalling both
+// axes and corrupting dtVelPid measurements.
+void pollSerial() {
+    static String cmdBuf;
+    while (Serial.available()) {
+        char c = (char)Serial.read();
+        if (c == '\n') {
+            handleCommand(cmdBuf);
+            cmdBuf = "";
+        } else if (c != '\r') {
+            cmdBuf += c;
+            if (cmdBuf.length() > 120) cmdBuf = ""; // guard against runaway buffer
+        }
     }
-    
-    
+}
+
+void loop() {
+    pollSerial();          // never blocks
+
     if (printRawPots) {
         static unsigned long lastRaw = 0;
         if (millis() - lastRaw >= 500) {

@@ -429,23 +429,65 @@ void Axis::update() {
     lastPidLoopMs = nowPidLoop;
     if (dtVelPid <= 0.0f || dtVelPid > 0.1f) dtVelPid = 0.02f; // Prevent lag spikes
 
+    // ── Fix 2: Record dt into histogram for loop-timing diagnostics ──────────
+    // Buckets: 0-5ms, 5-10ms, 10-15ms, ..., >35ms (8 x 5ms-wide slots)
+    {
+        int bucket = (int)(dtVelPid * 1000.0f / 5.0f);
+        if (bucket < 0) bucket = 0;
+        if (bucket >= DT_BUCKETS) bucket = DT_BUCKETS - 1;
+        dtHistogram[bucket]++;
+    }
+
     if (inDeadband) {
-        velIntegral = 0.0f;
-        velPidOut   = 0.0f;
-        tgtVelDegS  = 0.0f;
+        // ── Fix 3: Smooth decay instead of hard-zero ────────────────────────
+        // Hard-zeroing velIntegral / velPidOut on deadband entry causes a
+        // discontinuity: the next transzone entry starts from a cold integrator
+        // even though the system may still have nonzero velocity error "memory".
+        // Decaying with a short tau (0.15 s) keeps the state continuous while
+        // still reaching zero well before re-entry drives become significant.
+        float dbDecay  = expf(-dtVelPid / 0.15f);
+        velIntegral   *= dbDecay;
+        velPidOut     *= dbDecay;
+        tgtVelDegS     = 0.0f;
         profileVelDegS = 0.0f;
     } else {
-        float velErr    = tgtVelDegS - measuredVelDegS;
-        velIntegral     = velIntegral * 0.9f; // Leaky integrator (decays to 0)
-        velIntegral    += Ki_vel * velErr * dtVelPid;
-        velIntegral     = constrain(velIntegral, (float)-SERVO_DRIVE, (float)SERVO_DRIVE);  // anti-windup
-        velPidOut       = Kp_vel * velErr + velIntegral;
+        // ── Fix 4 (part A): Smooth the velocity reference UPSTREAM ───────────
+        // Applying an EMA to the PI *output* stacks two dynamic elements in
+        // series (PI + lag filter), risking beat-frequency oscillation.
+        // Filtering the *setpoint* tgtVelDegS instead gives the PI a smooth
+        // reference to track, which naturally shapes the output without the
+        // double-lag problem.
+        smoothedTgtVelDegS = velSmoothAlpha * tgtVelDegS
+                           + (1.0f - velSmoothAlpha) * smoothedTgtVelDegS;
+
+        float velErr    = smoothedTgtVelDegS - measuredVelDegS;
+
+        // ── Fix 1: Time-based leaky integrator decay ─────────────────────────
+        // Old: velIntegral * 0.9f per tick — effective tau = dtVelPid / 0.105.
+        // If dtVelPid bounces 5–40 ms the integrator memory swings 8×.
+        // New: expf(-dt/tau) gives exactly velIntegralTauSec time-constant
+        // regardless of loop jitter.
+        float decayFactor = expf(-dtVelPid / velIntegralTauSec);
+        velIntegral       = velIntegral * decayFactor;
+        velIntegral      += Ki_vel * velErr * dtVelPid;
+        velIntegral       = constrain(velIntegral, (float)-SERVO_DRIVE, (float)SERVO_DRIVE);  // anti-windup
+        velPidOut         = Kp_vel * velErr + velIntegral;
     }
     pidOutput = (double)velPidOut;  // for printStatus display
 
     // Gravity calculations for feedforward baseline
     float gravAngle  = potToAngle(potRaw);
     
+    // ── kGravity gravity feedforward ──────────────────────────────────────────
+    // TODO (Step 1): Replace kGravity * gravBoostMult * sin(angle) with a
+    // lookup table gravOffset(angle[]) measured via multi-angle holdtest sweeps.
+    // The gravBoostMult ramp was fit by eyeballing one test run; it is
+    // physically plausible (linkage leverage loss at extremes) but not derived
+    // from actual geometry.  When payload changes, the leverage-loss effect and
+    // the payload-mass effect do NOT necessarily scale together, so the hand-fit
+    // shape will drift.  Until multi-angle holdtest data is collected, the
+    // current formula is left unchanged — do not remove gravBoostMult without
+    // replacing it with measured data.  See GravityProfile in Axis.h TODO notes.
     // Dynamic Gravity Boost at extremes to compensate for mechanical linkage leverage loss
     float absAngleFromCenter = fabsf(gravAngle - 90.0f); // 0 at center, 90 at extremes
     float gravBoostMult = 1.0f;
@@ -509,14 +551,15 @@ void Axis::update() {
                             servoStop - SERVO_DRIVE,
                             servoStop + SERVO_DRIVE);
 
-    // ── Electronic Shock Absorber (EMA Slew Limiter) ──
-    // Smooths out instantaneous step-functions to prevent mechanical linkage whipping
-    if (smoothedSignal < 1) smoothedSignal = servoStop;
-    // Fast attack/release filter: 20% new signal, 80% history per loop cycle
-    smoothedSignal = 0.2f * (float)servoSignal + 0.8f * smoothedSignal;
-    
-    // Safety clamp just in case
-    int finalOutputPulse = constrain((int)round(smoothedSignal), servoStop - SERVO_DRIVE, servoStop + SERVO_DRIVE);
+    // ── Fix 4 (part B): Post-PI EMA slew filter REMOVED ─────────────────────
+    // The old EMA (0.2 * new + 0.8 * history) sat after a closed loop that
+    // already has P+leaky-I dynamics, creating two stacked dynamic elements in
+    // series. This is a classic recipe for either sluggish response or
+    // beat-frequency oscillation depending on relative time constants.
+    // Smoothing is now applied upstream on smoothedTgtVelDegS (see above).
+    // If mechanical whipping still occurs after retuning, lower Kp_vel — that
+    // is the root cause, not evidence that a second filter stage is needed.
+    int finalOutputPulse = constrain(servoSignal, servoStop - SERVO_DRIVE, servoStop + SERVO_DRIVE);
 
     // ── Direction-aware watchdog ──
     // Grace period: after reset/target commands, don't arm for 2 s.
@@ -947,4 +990,25 @@ void Axis::startSlowtest(int dir) {
     targetSet = true; // Enable execution loop to reach SLOWTEST state
     sysState = SYS_SLOWTEST;
     Serial.printf("[S%d][SLOWTEST] Starting stiction sweep %s\n", this->id, (stDir > 0) ? "+" : "-");
+}
+
+// ── printDtHistogram ───────────────────────────────────────────────────────────
+// Dumps the dt distribution histogram over serial, then resets it.
+// Use the 'dtstats <id>' serial command to call this.
+// Interpret output: tight cluster around one bucket = loop is regular.
+// Bimodal or fat tail >35ms = loop is stalling (likely blocking serial
+// or other long-running code in loop()).
+void Axis::printDtHistogram() {
+    Serial.printf("[S%d][DTSTATS] dt distribution (last %u samples):\n",
+                  this->id,
+                  dtHistogram[0] + dtHistogram[1] + dtHistogram[2] + dtHistogram[3] +
+                  dtHistogram[4] + dtHistogram[5] + dtHistogram[6] + dtHistogram[7]);
+    const char* labels[DT_BUCKETS] = {
+        " 0-5ms", " 5-10ms", "10-15ms", "15-20ms",
+        "20-25ms", "25-30ms", "30-35ms", "  >35ms"
+    };
+    for (int i = 0; i < DT_BUCKETS; i++) {
+        Serial.printf("  [%s]: %u\n", labels[i], dtHistogram[i]);
+        dtHistogram[i] = 0;  // reset after printing
+    }
 }
