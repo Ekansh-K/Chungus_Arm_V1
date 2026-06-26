@@ -79,6 +79,8 @@ void printHelp() {
     Serial.println(F("  notarget <id>         stop PID, servo idle at neutral"));
     Serial.println(F("  stop <id>             alias for notarget"));
     Serial.println(F("  reset <id>            clear fault and resume"));
+    Serial.println(F("  savestop <id> <n>     adjust/save exact neutral pulse"));
+    Serial.println(F("  slowtest <id> <dir>   run stiction test (+ or -)"));
     Serial.println(F("  stiction0 <id> <n>    set stiction offset toward 0°"));
     Serial.println(F("  stiction180 <id> <n>  set stiction offset toward 180°"));
     Serial.println(F("  kgrav <id> <float>    set gravity compensation gain"));
@@ -87,6 +89,11 @@ void printHelp() {
     Serial.println(F("  recal0 <id>           auto-calibrate pot at 0° endpoint"));
     Serial.println(F("  recal180 <id>         auto-calibrate pot at 180° endpoint"));
     Serial.println(F("  status                print active settings for all axes"));
+    Serial.println(F("  idle on / idle off    toggle streaming of [IDLE] pot logs"));
+    Serial.println(F("── ABSOLUTE CHANNELS (2–15) ──────────────────"));
+    Serial.println(F("  servo <ch> <angle>    move absolute servo (0°–180°)"));
+    Serial.println(F("  pwm <ch> <pulse>      set raw PWM pulse (0–4095)"));
+    Serial.println(F("  stop <ch>             turn off PWM output on channel"));
     Serial.println(F("══════════════════════════════════════════════\n"));
 }
 
@@ -129,6 +136,16 @@ void handleCommand(String cmd) {
         Serial.println("[OK] Raw POT values mode DISABLED.");
         return;
     }
+    if (cmd.equalsIgnoreCase("idle on") || cmd.equalsIgnoreCase("verbose")) {
+        axes[0].muteIdle = false; axes[1].muteIdle = false;
+        Serial.println("[OK] Idle log streaming ENABLED.");
+        return;
+    }
+    if (cmd.equalsIgnoreCase("idle off") || cmd.equalsIgnoreCase("quiet") || cmd.equalsIgnoreCase("mute")) {
+        axes[0].muteIdle = true; axes[1].muteIdle = true;
+        Serial.println("[OK] Idle log streaming MUTED.");
+        return;
+    }
     
     // Parse syntax: <command> <axis_id> [value]
     int firstSpace = cmd.indexOf(' ');
@@ -156,12 +173,39 @@ void handleCommand(String cmd) {
         valStr.trim();
     }
     
-    if (axIdStr != "0" && axIdStr != "1") {
-        Serial.println(F("[ERROR] Invalid Axis ID! Must be 0 or 1."));
+    int ax_id = axIdStr.toInt();
+    if (ax_id < 0 || ax_id > 15 || (ax_id == 0 && axIdStr != "0")) {
+        Serial.println(F("[ERROR] Invalid Channel ID! Must be 0–15."));
         return;
     }
     
-    int ax_id = axIdStr.toInt();
+    // Handle remaining channels (2–15) for absolute servos / direct PWM
+    if (ax_id >= 2) {
+        if (action == "target" || action == "servo" || action == "abs") {
+            if (valStr == "") { Serial.println(F("[ERROR] command requires angle (0-180)")); return; }
+            float ang = constrain(valStr.toFloat(), 0.0f, 180.0f);
+            // Standard servo pulse mapping: 102 (~500us) to 512 (~2500us) out of 4096 at 50Hz
+            int pulse = 102 + (int)(ang * (512.0f - 102.0f) / 180.0f);
+            pwm.setPWM(ax_id, 0, pulse);
+            Serial.printf("[INFO] Abs Servo Ch %d moved to %.1f° (pulse %d)\n", ax_id, ang, pulse);
+            return;
+        }
+        if (action == "pwm" || action == "pulse") {
+            if (valStr == "") { Serial.println(F("[ERROR] pwm requires pulse count (0-4095)")); return; }
+            int pulse = constrain(valStr.toInt(), 0, 4095);
+            pwm.setPWM(ax_id, 0, pulse);
+            Serial.printf("[INFO] Ch %d raw PWM set to %d\n", ax_id, pulse);
+            return;
+        }
+        if (action == "stop" || action == "off" || action == "notarget") {
+            pwm.setPWM(ax_id, 0, 4096); // Full OFF bit
+            Serial.printf("[INFO] Ch %d turned OFF\n", ax_id);
+            return;
+        }
+        Serial.println(F("[ERROR] Command not supported on absolute channels (2-15). Use target, servo, pwm, stop."));
+        return;
+    }
+
     Axis &ax = axes[ax_id];
     
     if (action == "target") {
@@ -184,6 +228,16 @@ void handleCommand(String cmd) {
         ax.kGravity = valStr.toFloat();
         ax.saveSettingsToFlash();
         Serial.printf("[CFG] Axis %d kGravity = %.3f\n", ax_id, ax.kGravity);
+        return;
+    }
+    if (action == "savestop" || action == "srvstop" || action == "setstop") {
+        if (valStr == "") { Serial.println(F("[ERROR] savestop requires neutral pulse count")); return; }
+        ax.setServoStop(valStr.toInt());
+        return;
+    }
+    if (action == "slowtest") {
+        int dir = (valStr == "-" || valStr == "-1") ? -1 : 1;
+        ax.startSlowtest(dir);
         return;
     }
     if (action == "stiction0") {

@@ -65,7 +65,7 @@ void Axis::saveSettingsToFlash() {
 }
 
 void Axis::loadSettingsFromFlash() {
-    prefs->begin(nvsNamespace.c_str(), true);
+    prefs->begin(nvsNamespace.c_str(), false);
     int    s   = prefs->getInt(NVS_KEY_SERVO_STOP,     SERVO_STOP_DEFAULT);
     int    d   = prefs->getInt(NVS_KEY_DEADBAND,       DEADBAND_ADC_DEFAULT);
     int    s0  = prefs->getInt(NVS_KEY_STICTION_TO0,   SERVO_STICTION_DEFAULT);
@@ -76,11 +76,11 @@ void Axis::loadSettingsFromFlash() {
     int    vct = prefs->getInt(NVS_KEY_VELCUT,         30);
     prefs->end();
 
-    // Validate ranges before accepting
-    servoStop          = (s   >= 50 && s   <= 500) ? s   : SERVO_STOP_DEFAULT;
-    deadbandADC        = (d   >= 2  && d   <= 200) ? d   : DEADBAND_ADC_DEFAULT;
-    servoStictionTo0   = (s0  >= 1  && s0  <= 80)  ? s0  : SERVO_STICTION_DEFAULT;
-    servoStictionTo180 = (s18 >= 1  && s18 <= 80)  ? s18 : SERVO_STICTION_DEFAULT;
+    // Validate ranges before accepting (sanitize corrupted values like 50)
+    servoStop          = (s   >= 200 && s   <= 500) ? s   : SERVO_STOP_DEFAULT;
+    deadbandADC        = (d   >= 2   && d   <= 200) ? d   : DEADBAND_ADC_DEFAULT;
+    servoStictionTo0   = (s0  >= 1   && s0  <= 80)  ? s0  : SERVO_STICTION_DEFAULT;
+    servoStictionTo180 = (s18 >= 1   && s18 <= 80)  ? s18 : SERVO_STICTION_DEFAULT;
     kGravity           = (kg  >= -200.0 && kg <= 200.0) ? kg : 0.0;
     transzoneMult      = (tz  >= 1  && tz  <= 5)   ? tz  : 2;
     sticBoostHold      = (sbh >= 0  && sbh <= 20)  ? sbh : 0;
@@ -303,7 +303,7 @@ void Axis::update() {
     if (!targetSet) {
         pwm->setPWM(pwmChannel, 0, (uint16_t)servoStop);
         
-        if (millis() - lastIdleMsg >= 100) {
+        if (!muteIdle && (millis() - lastIdleMsg >= 2000)) {
             lastIdleMsg = millis();
             int p = readPotFiltered();
             Serial.printf("[S%d][IDLE] pot=%4d  ang=%5.1f°  raw=%+5.1f  filt=%+5.1f deg/s  No target\n",
@@ -718,7 +718,7 @@ void Axis::startRecal(int mode) {
 
 
 void Axis::loadCalFromFlash() {
-    prefs->begin(nvsNamespace.c_str(), true);
+    prefs->begin(nvsNamespace.c_str(), false);
     int s0   = prefs->getInt(NVS_KEY_0DEG,   DEFAULT_POT_0DEG);
     int s180 = prefs->getInt(NVS_KEY_180DEG, DEFAULT_POT_180DEG);
     prefs->end();
@@ -926,4 +926,25 @@ void Axis::triggerDriftWarn(int driftADC) {
     sysState = SYS_DRIFT_WARN;
     Serial.printf("[S%d][DRIFT] Warning — pot drifted %d ADC while stationary\n", this->id, driftADC);
     Serial.printf("[S%d][DRIFT] Send 'recal2' to recalibrate, or 'resume' to ignore\n", this->id);
+}
+
+void Axis::setServoStop(int pulse) {
+    if (pulse < 200 || pulse > 500) {
+        Serial.printf("[S%d][ERROR] Invalid neutral pulse %d! Must be 200–500 (~1500us).\n", this->id, pulse);
+        return;
+    }
+    servoStop = pulse;
+    saveSettingsToFlash();
+    pwm->setPWM(pwmChannel, 0, (uint16_t)servoStop);
+    Serial.printf("[S%d][CFG] New neutral servoStop saved: %d\n", this->id, servoStop);
+}
+
+void Axis::startSlowtest(int dir) {
+    stDir = (dir >= 0) ? 1 : -1;
+    stDrive = 0;
+    stStartPot = readPotFiltered();
+    stLastStep = millis();
+    targetSet = true; // Enable execution loop to reach SLOWTEST state
+    sysState = SYS_SLOWTEST;
+    Serial.printf("[S%d][SLOWTEST] Starting stiction sweep %s\n", this->id, (stDir > 0) ? "+" : "-");
 }

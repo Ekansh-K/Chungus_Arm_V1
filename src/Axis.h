@@ -141,6 +141,7 @@ public:
     double pidInput = 0;
     double pidOutput = 0;
     bool velPlotActive = false;
+    bool muteIdle = true;
     PID controller;
 
     // NVS Tunables
@@ -288,6 +289,8 @@ public:
     void reset();
     void stop();
     void setTarget(float angle);
+    void setServoStop(int pulse);
+    void startSlowtest(int dir);
 };
 
 #endif
