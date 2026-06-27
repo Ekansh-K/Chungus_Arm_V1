@@ -82,7 +82,7 @@ void Axis::loadSettingsFromFlash() {
     servoStictionTo0   = (s0  >= 1   && s0  <= 80)  ? s0  : SERVO_STICTION_DEFAULT;
     servoStictionTo180 = (s18 >= 1   && s18 <= 80)  ? s18 : SERVO_STICTION_DEFAULT;
     kGravity           = (kg  >= -200.0 && kg <= 200.0) ? kg : 0.0;
-    transzoneMult      = (tz  >= 1  && tz  <= 5)   ? tz  : 2;
+    transzoneMult      = (tz  >= 1  && tz  <= 6)   ? tz  : 3;  // Tuned default: 3 (was 2)
     sticBoostHold      = (sbh >= 0  && sbh <= 20)  ? sbh : 0;
     velCutThr          = (vct >= 10 && vct <= 100)  ? vct : 30;
 
@@ -445,11 +445,12 @@ void Axis::update() {
         // even though the system may still have nonzero velocity error "memory".
         // Decaying with a short tau (0.15 s) keeps the state continuous while
         // still reaching zero well before re-entry drives become significant.
-        float dbDecay  = expf(-dtVelPid / 0.15f);
-        velIntegral   *= dbDecay;
-        velPidOut     *= dbDecay;
-        tgtVelDegS     = 0.0f;
-        profileVelDegS = 0.0f;
+        float dbDecay       = expf(-dtVelPid / 0.15f);
+        velIntegral        *= dbDecay;
+        velPidOut          *= dbDecay;
+        smoothedTgtVelDegS *= dbDecay;
+        tgtVelDegS          = 0.0f;
+        profileVelDegS      = 0.0f;
     } else {
         // ── Fix 4 (part A): Smooth the velocity reference UPSTREAM ───────────
         // Applying an EMA to the PI *output* stacks two dynamic elements in
@@ -470,7 +471,7 @@ void Axis::update() {
         float decayFactor = expf(-dtVelPid / velIntegralTauSec);
         velIntegral       = velIntegral * decayFactor;
         velIntegral      += Ki_vel * velErr * dtVelPid;
-        velIntegral       = constrain(velIntegral, (float)-SERVO_DRIVE, (float)SERVO_DRIVE);  // anti-windup
+        velIntegral       = constrain(velIntegral, -50.0f, 50.0f);  // Tuned anti-windup: was ±SERVO_DRIVE(120), tightened to ±50 to prevent catastrophic overshoot on long gravity-assisted slews
         velPidOut         = Kp_vel * velErr + velIntegral;
     }
     pidOutput = (double)velPidOut;  // for printStatus display
@@ -930,6 +931,10 @@ void Axis::updateDriftDetection(int potNow, bool inDeadband) {
             int correction = potNow - driftRefPot;
             pidSetpoint   += correction;
             pidSetpoint    = clampToSoftLimits((int)pidSetpoint);
+            if (fabsf(cal.adcPerDeg) > 0.01f) {
+                finalTargetDeg += (float)correction / cal.adcPerDeg;
+                targetAngleDeg  = finalTargetDeg;
+            }
             Serial.printf("[S%d][DRIFT] Minor drift %d ADC — setpoint auto-corrected\n", this->id, drift);
         } else {
             triggerDriftWarn(drift);

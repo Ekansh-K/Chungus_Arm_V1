@@ -3,593 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antigravity // Multi-Axis Robotic Arm Command Center</title>
+    <title>CHUNGUS ARM CONTROLLER</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-base: #070b12;
             --bg-card: rgba(16, 22, 36, 0.75);
-            --bg-card-hover: rgba(22, 30, 48, 0.85);
             --border-color: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(0, 242, 254, 0.3);
-            
             --text-main: #f0f4f8;
             --text-muted: #8b9bb4;
             --text-accent: #00f2fe;
             --text-orange: #ff7e5f;
             --text-green: #00eb8b;
             --text-red: #ff4b6e;
-
             --cyan-grad: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
             --orange-grad: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
             --red-grad: linear-gradient(135deg, #ff4b6e 0%, #ff6a88 100%);
-            --green-grad: linear-gradient(135deg, #00eb8b 0%, #00bd70 100%);
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace !important; }
         body {
-            background-color: var(--bg-base);
-            color: var(--text-main);
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-            background-image: 
+            background-color: var(--bg-base); color: var(--text-main);
+            min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden;
+            background-image:
                 radial-gradient(circle at 15% 20%, rgba(0, 242, 254, 0.04) 0%, transparent 40%),
                 radial-gradient(circle at 85% 80%, rgba(255, 126, 95, 0.04) 0%, transparent 40%);
         }
-
-        /* ── Top Navigation / Header ── */
         header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(11, 15, 25, 0.85);
-            backdrop-filter: blur(16px);
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(11, 15, 25, 0.85); backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-color);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
         }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
+        .brand { display: flex; align-items: center; gap: 0.75rem; }
         .brand-icon {
-            width: 32px;
-            height: 32px;
-            background: var(--cyan-grad);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            color: #000;
-            box-shadow: 0 0 16px rgba(0, 242, 254, 0.4);
+            width: 32px; height: 32px; background: var(--cyan-grad); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; color: #000; box-shadow: 0 0 16px rgba(0, 242, 254, 0.4);
         }
-
         .brand h1 {
-            font-size: 1.1rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #fff, #a1b0cb);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+            color: #ffffff;
         }
-
         .brand span {
-            font-size: 0.75rem;
-            color: var(--text-accent);
-            font-family: 'JetBrains Mono', monospace;
-            padding: 2px 6px;
-            background: rgba(0, 242, 254, 0.1);
-            border: 1px solid rgba(0, 242, 254, 0.2);
-            border-radius: 4px;
+            font-size: 0.75rem; color: var(--text-accent);
+            padding: 2px 6px; background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.2); border-radius: 4px;
         }
-
-        .conn-controls {
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-        }
-
+        .conn-controls { display: flex; align-items: center; gap: 1.25rem; }
         .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-            padding: 0.4rem 0.8rem;
-            border-radius: 99px;
-            background: rgba(255, 75, 110, 0.1);
-            border: 1px solid rgba(255, 75, 110, 0.3);
-            color: var(--text-red);
-            transition: all 0.3s ease;
+            display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600;
+            padding: 0.4rem 0.8rem; border-radius: 99px;
+            background: rgba(255, 75, 110, 0.1); border: 1px solid rgba(255, 75, 110, 0.3);
+            color: var(--text-red); transition: all 0.3s ease;
         }
-
         .status-badge.connected {
-            background: rgba(0, 235, 139, 0.1);
-            border-color: rgba(0, 235, 139, 0.4);
-            color: var(--text-green);
-            box-shadow: 0 0 12px rgba(0, 235, 139, 0.2);
+            background: rgba(0, 235, 139, 0.1); border-color: rgba(0, 235, 139, 0.4);
+            color: var(--text-green); box-shadow: 0 0 12px rgba(0, 235, 139, 0.2);
         }
-
-        .led {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text-red);
-            box-shadow: 0 0 8px var(--text-red);
-        }
-
-        .connected .led {
-            background: var(--text-green);
-            box-shadow: 0 0 10px var(--text-green);
-            animation: pulse-green 2s infinite;
-        }
-
-        @keyframes pulse-green {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        btn, .btn {
-            background: var(--cyan-grad);
-            color: #070b12;
-            border: none;
-            padding: 0.6rem 1.25rem;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
+        .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-red); box-shadow: 0 0 8px var(--text-red); }
+        .connected .led { background: var(--text-green); box-shadow: 0 0 10px var(--text-green); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        .btn {
+            background: var(--cyan-grad); color: #070b12; border: none;
+            padding: 0.6rem 1.25rem; font-weight: 600; font-size: 0.9rem; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.5rem;
             box-shadow: 0 4px 12px rgba(0, 242, 254, 0.25);
         }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(0, 242, 254, 0.4);
-        }
-
-        .btn:active {
-            transform: translateY(1px);
-        }
-
-        .btn-danger {
-            background: var(--red-grad);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(255, 75, 110, 0.25);
-        }
-
-        .btn-danger:hover {
-            box-shadow: 0 6px 16px rgba(255, 75, 110, 0.4);
-        }
-
-        .btn-ghost {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            box-shadow: none;
-        }
-
-        .btn-ghost:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: none;
-        }
-
-        /* ── Main Dashboard Layout ── */
-        main {
-            flex: 1;
-            padding: 2rem;
-            max-width: 1600px;
-            width: 100%;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 2rem;
-        }
-
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 242, 254, 0.4); }
+        .btn:active { transform: translateY(1px); }
+        .btn-danger { background: var(--red-grad); color: #fff; box-shadow: 0 4px 12px rgba(255,75,110,0.25); }
+        .btn-danger:hover { box-shadow: 0 6px 16px rgba(255,75,110,0.4); }
+        .btn-ghost { background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: none; }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none; }
+        main { flex: 1; padding: 2rem; max-width: 1600px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
         .section-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: var(--text-muted);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
         }
-
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-
-        /* ── Dual Axis Grid (S0 / S1) ── */
-        .axes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 1.5rem;
-        }
-
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
+        .axes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 1.5rem; }
         .card {
-            background: var(--bg-card);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
         }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: var(--border-color);
-            transition: background 0.3s ease;
-        }
-
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: var(--border-color); transition: background 0.3s ease; }
         .card.active-s0::before { background: var(--cyan-grad); }
         .card.active-s1::before { background: var(--orange-grad); }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1.5rem;
-        }
-
-        .axis-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .axis-tag {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            font-weight: 700;
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid var(--border-color);
-        }
-
+        .card.active-sn::before { background: linear-gradient(135deg, #00eb8b 0%, #00f2fe 100%); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+        .axis-info { display: flex; align-items: center; gap: 0.75rem; }
+        .axis-tag { font-size: 0.9rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); }
         .active-s0 .axis-tag { color: var(--text-accent); border-color: rgba(0,242,254,0.3); }
         .active-s1 .axis-tag { color: var(--text-orange); border-color: rgba(255,126,95,0.3); }
-
-        .axis-title h2 {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .axis-title p {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        .zone-badge {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.6rem;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.05);
-            color: var(--text-muted);
-        }
-
-        .zone-badge.HOLD { background: rgba(0, 235, 139, 0.15); color: var(--text-green); border: 1px solid rgba(0,235,139,0.3); }
-        .zone-badge.MOVE { background: rgba(0, 242, 254, 0.15); color: var(--text-accent); border: 1px solid rgba(0,242,254,0.3); }
-        .zone-badge.ZTRANS { background: rgba(255, 126, 95, 0.15); color: var(--text-orange); border: 1px solid rgba(255,126,95,0.3); }
-
-        /* Telemetry Grid */
-        .telemetry-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            background: rgba(0,0,0,0.25);
-            padding: 1rem;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.04);
-        }
-
-        .telem-box {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .telem-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .telem-val {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        /* Visual Progress Arc/Bar */
-        .pos-visualizer {
-            margin-bottom: 1.5rem;
-        }
-
-        .pos-bar-bg {
-            width: 100%;
-            height: 12px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 99px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .pos-bar-fill {
-            height: 100%;
-            width: 50%;
-            border-radius: 99px;
-            transition: width 0.1s linear;
-        }
-
+        .active-sn .axis-tag { color: var(--text-green); border-color: rgba(0,235,139,0.3); }
+        .axis-title h2 { font-size: 1.25rem; font-weight: 600; }
+        .axis-title p { font-size: 0.8rem; color: var(--text-muted); }
+        .zone-badge { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-muted); }
+        .zone-badge.HOLD { background: rgba(0,235,139,0.15); color: var(--text-green); border: 1px solid rgba(0,235,139,0.3); }
+        .zone-badge.MOVE { background: rgba(0,242,254,0.15); color: var(--text-accent); border: 1px solid rgba(0,242,254,0.3); }
+        .zone-badge.ZTRANS { background: rgba(255,126,95,0.15); color: var(--text-orange); border: 1px solid rgba(255,126,95,0.3); }
+        .telemetry-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); }
+        .telem-box { display: flex; flex-direction: column; gap: 0.25rem; }
+        .telem-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; }
+        .telem-val { font-size: 1.25rem; font-weight: 700; color: #fff; }
+        .pos-visualizer { margin-bottom: 1.5rem; }
+        .pos-bar-bg { width: 100%; height: 12px; background: rgba(255,255,255,0.06); border-radius: 99px; position: relative; overflow: hidden; }
+        .pos-bar-fill { height: 100%; width: 50%; border-radius: 99px; transition: width 0.1s linear; }
         .active-s0 .pos-bar-fill { background: var(--cyan-grad); box-shadow: 0 0 12px rgba(0,242,254,0.5); }
         .active-s1 .pos-bar-fill { background: var(--orange-grad); box-shadow: 0 0 12px rgba(255,126,95,0.5); }
-
-        /* Slider Controls */
-        .control-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .control-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-
-        .control-header label {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .target-input-grp {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        input[type="number"], input[type="text"] {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 0.35rem 0.6rem;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            width: 80px;
-            text-align: center;
-        }
-
-        input[type="number"]:focus, input[type="text"]:focus {
-            outline: none;
-            border-color: var(--text-accent);
-        }
-
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            outline: none;
-            margin-bottom: 1rem;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(255,255,255,0.8);
-            transition: transform 0.1s ease;
-        }
-
-        .active-s0 input[type="range"]::-webkit-slider-thumb { background: var(--text-accent); box-shadow: 0 0 12px var(--text-accent); }
-        .active-s1 input[type="range"]::-webkit-slider-thumb { background: var(--text-orange); box-shadow: 0 0 12px var(--text-orange); }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-
-        .nudge-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.5rem;
-        }
-
-        .btn-nudge {
-            padding: 0.4rem;
-            font-size: 0.8rem;
-            font-family: 'JetBrains Mono', monospace;
-            background: rgba(255,255,255,0.06);
-            color: var(--text-main);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-nudge:hover {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.25);
-        }
-
-        /* Card Footer / Actions */
-        .card-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            gap: 1rem;
-        }
-
-        .tune-grp {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex: 1;
-        }
-
-        .tune-grp label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        /* ── Absolute Channels (2-15) Panel ── */
-        .abs-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-        }
-
-        .abs-controls {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        select {
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.95rem;
-            outline: none;
-        }
-
-        select:focus { border-color: var(--text-accent); }
-
-        .abs-slider-grp {
-            flex: 1;
-            min-width: 300px;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        /* ── Terminal / Console ── */
-        .terminal-section {
-            background: #04070c;
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            height: 400px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .terminal-header {
-            background: rgba(255,255,255,0.03);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0.75rem 1.25rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .terminal-title {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .terminal-window {
-            flex: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.82rem;
-            line-height: 1.5;
-            color: #a9b7c6;
-        }
-
+        .active-sn .pos-bar-fill { background: linear-gradient(135deg, #00eb8b 0%, #00f2fe 100%); box-shadow: 0 0 12px rgba(0,235,139,0.5); }
+        .control-group { margin-bottom: 1.5rem; }
+        .control-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .control-header label { font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+        .target-input-grp { display: flex; align-items: center; gap: 0.5rem; }
+        input[type="number"], input[type="text"] { background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.35rem 0.6rem; color: #fff; font-size: 0.9rem; width: 80px; text-align: center; }
+        input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: var(--text-accent); }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; outline: none; margin-bottom: 0.5rem; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; cursor: pointer; box-shadow: 0 0 10px rgba(255,255,255,0.8); transition: transform 0.1s ease; }
+        .active-s0 input[type="range"]::-webkit-slider-thumb { background: var(--text-accent); box-shadow: 0 0 14px var(--text-accent); }
+        .active-s1 input[type="range"]::-webkit-slider-thumb { background: var(--text-orange); box-shadow: 0 0 14px var(--text-orange); }
+        .active-sn input[type="range"]::-webkit-slider-thumb { background: var(--text-green); box-shadow: 0 0 14px var(--text-green); }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .slider-readout { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1rem; }
+        .slider-readout .cur-val { color: var(--text-main); font-weight: 600; }
+        .card-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); gap: 1rem; }
+        .tune-grp { display: flex; align-items: center; gap: 0.5rem; flex: 1; }
+        .tune-grp label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+        /* Graph */
+        .graph-section { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; }
+        .graph-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .graph-legend { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; font-weight: 600; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        canvas#angleGraph { width: 100%; height: 220px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); display: block; }
+        /* Terminal */
+        .terminal-section { background: #04070c; border: 1px solid var(--border-color); border-radius: 16px; display: flex; flex-direction: column; height: 380px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .terminal-header { background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-color); padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        .terminal-title { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
+        .terminal-window { flex: 1; padding: 1rem; overflow-y: auto; font-size: 0.82rem; line-height: 1.5; color: #a9b7c6; }
         .log-line { margin-bottom: 2px; word-break: break-all; }
-        .log-line.rx { color: #6897bb; }
-        .log-line.tx { color: #9876aa; font-weight: 600; }
+        .log-line.rx   { color: #6897bb; }
+        .log-line.tx   { color: #9876aa; font-weight: 600; }
         .log-line.warn { color: #bbb529; }
-        .log-line.err { color: #ff6b68; font-weight: 600; }
-        .log-line.ok { color: #6a8759; }
-
-        .terminal-input-bar {
-            display: flex;
-            border-top: 1px solid var(--border-color);
-            background: rgba(255,255,255,0.02);
-        }
-
-        .terminal-input-bar span {
-            padding: 0.75rem 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--text-accent);
-            font-weight: 700;
-        }
-
-        .terminal-input-bar input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            outline: none;
-            padding: 0.75rem 0;
-        }
-
-        /* Responsive */
+        .log-line.err  { color: #ff6b68; font-weight: 600; }
+        .log-line.ok   { color: #6a8759; }
+        .terminal-input-bar { display: flex; border-top: 1px solid var(--border-color); background: rgba(255,255,255,0.02); }
+        .terminal-input-bar span { padding: 0.75rem 1rem; color: var(--text-accent); font-weight: 700; }
+        .terminal-input-bar input { flex: 1; background: transparent; border: none; color: #fff; font-size: 0.9rem; outline: none; padding: 0.75rem 0; }
+        /* Add Joint Modal/Panel */
+        .add-joint-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; }
+        .add-joint-controls { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        select { background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 1rem; color: #fff; font-size: 0.95rem; outline: none; }
+        select:focus { border-color: var(--text-accent); }
         @media (max-width: 768px) {
             header { padding: 1rem; flex-direction: column; gap: 1rem; }
             main { padding: 1rem; }
@@ -600,516 +168,575 @@
 </head>
 <body>
 
-    <!-- ── Top Header ── -->
-    <header>
-        <div class="brand">
-            <div class="brand-icon">AG</div>
-            <div>
-                <h1>Robotic Arm Command Center</h1>
-                <p style="font-size:0.75rem; color:var(--text-muted);">Pair Programming Agentic Web Serial Dashboard</p>
-            </div>
-            <span>v2.4 ESP32</span>
+<header>
+    <div class="brand">
+        <div class="brand-icon" title="Chungus Arm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#070b12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="18" width="14" height="3" rx="1" fill="#070b12"/>
+                <path d="M12 18V13L7 8L12 4"/>
+                <path d="M14 2L12 4L14 6"/>
+                <circle cx="12" cy="13" r="1.5" fill="#070b12"/>
+                <circle cx="7" cy="8" r="1.5" fill="#070b12"/>
+            </svg>
         </div>
-
-        <div class="conn-controls">
-            <div class="status-badge" id="statusBadge">
-                <div class="led"></div>
-                <span id="statusText">DISCONNECTED</span>
-            </div>
-
-            <select id="baudSelect" style="padding:0.4rem 0.75rem; font-size:0.85rem;">
-                <option value="115200" selected>115200 Baud</option>
-                <option value="9600">9600 Baud</option>
-            </select>
-
-            <button class="btn" id="btnConnect" onclick="toggleConnection()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77 0"/></svg>
-                Connect USB Arm
-            </button>
+        <h1>CHUNGUS ARM CONTROLLER</h1>
+    </div>
+    <div class="conn-controls">
+        <div class="status-badge" id="statusBadge">
+            <div class="led"></div>
+            <span id="statusText">DISCONNECTED</span>
         </div>
-    </header>
+        <select id="baudSelect" style="padding:0.4rem 0.75rem;font-size:0.85rem;">
+            <option value="115200" selected>115200 Baud</option>
+            <option value="9600">9600 Baud</option>
+        </select>
+        <button class="btn" id="btnConnect" onclick="toggleConnection()">Connect USB Arm</button>
+    </div>
+</header>
 
-    <!-- ── Main Content Grid ── -->
-    <main>
+<main>
 
-        <!-- Continuous Arms (S0 / S1) -->
-        <div>
-            <div class="section-title">Continuous PID Axes (Closed-Loop Position & Trajectory)</div>
-            <div class="axes-grid">
+    <!-- Continuous PID Axes -->
+    <div>
+        <div class="section-title">Continuous PID Axes (Closed-Loop Position &amp; Trajectory)</div>
+        <div class="axes-grid" id="axesContainer">
 
-                <!-- Axis 0 Card -->
-                <div class="card active-s0" id="cardS0">
-                    <div class="card-header">
-                        <div class="axis-info">
-                            <span class="axis-tag">AXIS 0</span>
-                            <div class="axis-title">
-                                <h2>Servo 0 (Base / Arm)</h2>
-                                <p>ADC Pin 34 // PCA Channel 0</p>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <span class="zone-badge" id="zoneS0">IDLE</span>
-                            <button class="btn btn-ghost" style="padding:0.35rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('reset 0')">RESET</button>
-                            <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('stop 0')">E-STOP</button>
-                        </div>
+            <!-- Axis 0 -->
+            <div class="card active-s0" id="cardS0">
+                <div class="card-header">
+                    <div class="axis-info">
+                        <span class="axis-tag">AXIS 0</span>
+                        <div class="axis-title"><h2>Servo 0 (Base / Arm)</h2><p>ADC Pin 34 // PCA Channel 0</p></div>
                     </div>
-
-                    <div class="telemetry-grid">
-                        <div class="telem-box">
-                            <span class="telem-label">POT ADC</span>
-                            <span class="telem-val" id="potS0">----</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Angle</span>
-                            <span class="telem-val" style="color:var(--text-accent);" id="angS0">--.-°</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Meas Velocity</span>
-                            <span class="telem-val" id="velS0">--.-</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Target Vel</span>
-                            <span class="telem-val" id="tvlS0">--.-</span>
-                        </div>
-                    </div>
-
-                    <div class="pos-visualizer">
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">
-                            <span>0° (Min Limit)</span>
-                            <span id="visualAngS0">Target: 90.0°</span>
-                            <span>180° (Max Limit)</span>
-                        </div>
-                        <div class="pos-bar-bg">
-                            <div class="pos-bar-fill" id="barS0" style="width: 50%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <div class="control-header">
-                            <label>Target Position Setpoint</label>
-                            <div class="target-input-grp">
-                                <input type="number" id="numS0" value="90" min="3" max="177" step="1" onchange="sliderChange(0, this.value)">
-                                <span>°</span>
-                            </div>
-                        </div>
-                        <input type="range" id="sliderS0" min="3" max="177" value="90" step="0.5" oninput="sliderInput(0, this.value)" onchange="sliderChange(0, this.value)">
-                        
-                        <div class="nudge-row">
-                            <button class="btn-nudge" onclick="nudge(0, -5)">-5.0°</button>
-                            <button class="btn-nudge" onclick="nudge(0, -1)">-1.0°</button>
-                            <button class="btn-nudge" onclick="nudge(0, 1)">+1.0°</button>
-                            <button class="btn-nudge" onclick="nudge(0, 5)">+5.0°</button>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <div class="tune-grp">
-                            <label title="Stationary neutral pulse where continuous motor stays still">Neutral Pulse:</label>
-                            <input type="number" id="stopInS0" placeholder="369" style="width:70px;">
-                            <button class="btn btn-ghost" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="applyStop(0)">Save Neutral</button>
-                        </div>
-                        <button class="btn" style="padding:0.45rem 1rem; font-size:0.82rem;" onclick="sendSerial('recal2 0')">
-                            ⚙️ Calibrate Wizard
-                        </button>
+                    <div style="display:flex;gap:0.5rem;align-items:center;">
+                        <span class="zone-badge" id="zoneS0">IDLE</span>
+                        <button class="btn btn-ghost" style="padding:0.35rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('reset 0')">RESET</button>
+                        <button class="btn btn-danger" style="padding:0.35rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('stop 0')">E-STOP</button>
                     </div>
                 </div>
-
-                <!-- Axis 1 Card -->
-                <div class="card active-s1" id="cardS1">
-                    <div class="card-header">
-                        <div class="axis-info">
-                            <span class="axis-tag">AXIS 1</span>
-                            <div class="axis-title">
-                                <h2>Servo 1 (Elbow / Forearm)</h2>
-                                <p>ADC Pin 35 // PCA Channel 1</p>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <span class="zone-badge" id="zoneS1">IDLE</span>
-                            <button class="btn btn-ghost" style="padding:0.35rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('reset 1')">RESET</button>
-                            <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('stop 1')">E-STOP</button>
+                <div class="telemetry-grid">
+                    <div class="telem-box"><span class="telem-label">POT ADC</span><span class="telem-val" id="potS0">----</span></div>
+                    <div class="telem-box"><span class="telem-label">Angle</span><span class="telem-val" style="color:var(--text-accent);" id="angS0">--.-&#176;</span></div>
+                    <div class="telem-box"><span class="telem-label">Meas Vel</span><span class="telem-val" id="velS0">--.-</span></div>
+                    <div class="telem-box"><span class="telem-label">Target Vel</span><span class="telem-val" id="tvlS0">--.-</span></div>
+                </div>
+                <div class="pos-visualizer">
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">
+                        <span>0&#176;</span>
+                        <span id="visualAngS0" style="color:var(--text-accent);font-weight:600;">Target: 90.0&#176;</span>
+                        <span>180&#176;</span>
+                    </div>
+                    <div class="pos-bar-bg"><div class="pos-bar-fill" id="barS0" style="width:50%;"></div></div>
+                </div>
+                <div class="control-group">
+                    <div class="control-header">
+                        <label>Target Position Setpoint</label>
+                        <div class="target-input-grp">
+                            <input type="number" id="numS0" value="90" min="3" max="177" step="1" onchange="sliderChange(0,this.value)">
+                            <span>&#176;</span>
                         </div>
                     </div>
-
-                    <div class="telemetry-grid">
-                        <div class="telem-box">
-                            <span class="telem-label">POT ADC</span>
-                            <span class="telem-val" id="potS1">----</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Angle</span>
-                            <span class="telem-val" style="color:var(--text-orange);" id="angS1">--.-°</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Meas Velocity</span>
-                            <span class="telem-val" id="velS1">--.-</span>
-                        </div>
-                        <div class="telem-box">
-                            <span class="telem-label">Target Vel</span>
-                            <span class="telem-val" id="tvlS1">--.-</span>
-                        </div>
-                    </div>
-
-                    <div class="pos-visualizer">
-                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;">
-                            <span>0° (Min Limit)</span>
-                            <span id="visualAngS1">Target: 90.0°</span>
-                            <span>180° (Max Limit)</span>
-                        </div>
-                        <div class="pos-bar-bg">
-                            <div class="pos-bar-fill" id="barS1" style="width: 50%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <div class="control-header">
-                            <label>Target Position Setpoint</label>
-                            <div class="target-input-grp">
-                                <input type="number" id="numS1" value="90" min="3" max="177" step="1" onchange="sliderChange(1, this.value)">
-                                <span>°</span>
-                            </div>
-                        </div>
-                        <input type="range" id="sliderS1" min="3" max="177" value="90" step="0.5" oninput="sliderInput(1, this.value)" onchange="sliderChange(1, this.value)">
-                        
-                        <div class="nudge-row">
-                            <button class="btn-nudge" onclick="nudge(1, -5)">-5.0°</button>
-                            <button class="btn-nudge" onclick="nudge(1, -1)">-1.0°</button>
-                            <button class="btn-nudge" onclick="nudge(1, 1)">+1.0°</button>
-                            <button class="btn-nudge" onclick="nudge(1, 5)">+5.0°</button>
-                        </div>
-                    </div>
-
-                    <div class="card-actions">
-                        <div class="tune-grp">
-                            <label title="Stationary neutral pulse where continuous motor stays still">Neutral Pulse:</label>
-                            <input type="number" id="stopInS1" placeholder="369" style="width:70px;">
-                            <button class="btn btn-ghost" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="applyStop(1)">Save Neutral</button>
-                        </div>
-                        <button class="btn" style="background:var(--orange-grad); color:#000; padding:0.45rem 1rem; font-size:0.82rem;" onclick="sendSerial('recal2 1')">
-                            ⚙️ Calibrate Wizard
-                        </button>
+                    <input type="range" id="sliderS0" min="3" max="177" value="90" step="0.5" oninput="sliderInput(0,this.value)" onchange="sliderChange(0,this.value)">
+                    <div class="slider-readout">
+                        <span>3&#176; min</span>
+                        <span class="cur-val" id="sliderReadS0">90.0&#176;</span>
+                        <span>177&#176; max</span>
                     </div>
                 </div>
-
-            </div>
-        </div>
-
-        <!-- Absolute Channels (2 to 15) -->
-        <div>
-            <div class="section-title">Standard Positional Channels (PCA Channels 2 – 15 Direct Control)</div>
-            <div class="abs-panel">
-                <div class="abs-controls">
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <label style="font-size:0.85rem; font-weight:600; color:var(--text-muted);">Channel Select:</label>
-                        <select id="absChSelect">
-                            <option value="2">Channel 2 (Gripper / Wrist)</option>
-                            <option value="3">Channel 3</option>
-                            <option value="4">Channel 4</option>
-                            <option value="5">Channel 5</option>
-                            <option value="6">Channel 6</option>
-                            <option value="7">Channel 7</option>
-                            <option value="8">Channel 8</option>
-                        </select>
+                <div class="card-actions">
+                    <div class="tune-grp">
+                        <label title="Neutral pulse where motor stays still">Neutral Pulse:</label>
+                        <input type="number" id="stopInS0" placeholder="369" style="width:70px;">
+                        <button class="btn btn-ghost" style="padding:0.4rem 0.8rem;font-size:0.8rem;" onclick="applyStop(0)">Save Neutral</button>
                     </div>
-
-                    <div class="abs-slider-grp">
-                        <label style="font-size:0.85rem; font-weight:600;">Angle (°):</label>
-                        <input type="range" id="absSlider" min="0" max="180" value="90" step="1" oninput="absAngleChange(this.value)" style="margin:0;">
-                        <span id="absAngDisp" style="font-family:'JetBrains Mono'; font-weight:700; width:45px;">90°</span>
-                    </div>
-
-                    <div style="display:flex; gap:0.75rem; align-items:center;">
-                        <input type="number" id="absPwmRaw" placeholder="Raw PWM" style="width:100px;">
-                        <button class="btn btn-ghost" onclick="sendAbsPwm()">Set Raw Tick</button>
-                        <button class="btn btn-danger" style="padding:0.5rem 1rem;" onclick="stopAbsCh()">Cut Signal</button>
-                    </div>
+                    <button class="btn" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="sendSerial('recal2 0')">Wizard</button>
                 </div>
             </div>
+
         </div>
+    </div>
 
-        <!-- Serial Console Terminal -->
-        <div>
-            <div class="section-title">Bidirectional Serial Telemetry Console (115200 Baud Stream)</div>
-            <div class="terminal-section">
-                <div class="terminal-header">
-                    <div class="terminal-title">
-                        <span class="led" style="background:var(--text-accent); box-shadow:0 0 8px var(--text-accent);"></span>
-                        COM STREAM // LIVE SERIAL BUFFER
-                    </div>
-                    <div style="display:flex; gap:0.5rem;">
-                        <button class="btn btn-ghost" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('status')">GET STATUS</button>
-                        <button class="btn btn-ghost" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('idle on')">IDLE ON</button>
-                        <button class="btn btn-ghost" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="sendSerial('idle off')">IDLE OFF</button>
-                        <button class="btn btn-ghost" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="clearTerminal()">CLEAR</button>
-                    </div>
+    <!-- Add More Joint Section -->
+    <div>
+        <div class="section-title">Add More Joint (Dynamic Controller Setup)</div>
+        <div class="add-joint-panel">
+            <div class="add-joint-controls">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted);">Joint ID:</label>
+                    <input type="number" id="newJointId" value="1" min="1" max="15" style="width:70px;">
                 </div>
-
-                <div class="terminal-window" id="terminalWin">
-                    <div class="log-line ok">Antigravity Robotic Arm Dashboard Initialized.</div>
-                    <div class="log-line">Click 'Connect USB Arm' in top right to attach navigator.serial device.</div>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted);">ADC Pin:</label>
+                    <input type="number" id="newJointPin" value="35" placeholder="35" style="width:80px;">
                 </div>
-
-                <form class="terminal-input-bar" onsubmit="handleManualInput(event)">
-                    <span>&gt;</span>
-                    <input type="text" id="manualInput" placeholder="Type serial command directly (e.g. 'help', 'raw on', 'target 0 120')..." autocomplete="off">
-                </form>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted);">PCA Channel:</label>
+                    <input type="number" id="newJointCh" value="1" min="0" max="15" style="width:70px;">
+                </div>
+                <button class="btn" onclick="addMoreJoint()">Add Joint Controller</button>
             </div>
         </div>
+    </div>
 
-    </main>
+    <!-- Angle Tracking Graph -->
+    <div>
+        <div class="section-title">Live Angle Tracking &#8212; Target vs Actual (60s Window)</div>
+        <div class="graph-section">
+            <div class="graph-header">
+                <div class="graph-legend" id="graphLegend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#00f2fe;"></div><span style="color:#00f2fe;">S0 Target</span></div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#4facfe;opacity:0.6;"></div><span style="color:#4facfe;">S0 Actual</span></div>
+                </div>
+                <button class="btn btn-ghost" style="padding:0.3rem 0.75rem;font-size:0.75rem;" onclick="clearGraph()">CLEAR GRAPH</button>
+            </div>
+            <canvas id="angleGraph"></canvas>
+        </div>
+    </div>
 
-    <!-- ── Javascript Logic ── -->
-    <script>
-        let port = null;
-        let reader = null;
-        let writer = null;
-        let inputDone = null;
-        let outputDone = null;
-        let isConnected = false;
+    <!-- Serial Console -->
+    <div>
+        <div class="section-title">Bidirectional Serial Telemetry Console (115200 Baud)</div>
+        <div class="terminal-section">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    <span class="led" style="background:var(--text-accent);box-shadow:0 0 8px var(--text-accent);"></span>
+                    COM STREAM // LIVE SERIAL BUFFER
+                    <span id="telemFilterBadge" style="font-size:0.7rem;padding:2px 6px;border-radius:3px;background:rgba(0,235,139,0.15);color:var(--text-green);border:1px solid rgba(0,235,139,0.3);">TELEM FILTERED</span>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <button class="btn btn-ghost" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="toggleTelemFilter()" id="btnTelemFilter">Show All</button>
+                    <button class="btn btn-ghost" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('status')">GET STATUS</button>
+                    <button class="btn btn-ghost" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('idle on')">IDLE ON</button>
+                    <button class="btn btn-ghost" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('idle off')">IDLE OFF</button>
+                    <button class="btn btn-ghost" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="clearTerminal()">CLEAR</button>
+                </div>
+            </div>
+            <div class="terminal-window" id="terminalWin">
+                <div class="log-line ok">CHUNGUS ARM CONTROLLER Initialized.</div>
+                <div class="log-line">Click 'Connect USB Arm' in the top right to attach a navigator.serial device.</div>
+                <div class="log-line warn">Routine telemetry ([S0][RUN]) is filtered from terminal by default. Dashboard fields update at full rate. Click 'Show All' to see the raw stream.</div>
+            </div>
+            <form class="terminal-input-bar" onsubmit="handleManualInput(event)">
+                <span>&gt;</span>
+                <input type="text" id="manualInput" placeholder="Type serial command (Use UP/DOWN arrows for command history)..." autocomplete="off" onkeydown="handleHistory(event)">
+            </form>
+        </div>
+    </div>
 
-        const term = document.getElementById('terminalWin');
-        const statusBadge = document.getElementById('statusBadge');
-        const statusText = document.getElementById('statusText');
-        const btnConnect = document.getElementById('btnConnect');
+</main>
 
-        // State trackers
-        let currentSliders = { 0: 90, 1: 90 };
+<script>
+// ── Connection State ────────────────────────────────────────────────────────
+let port=null, reader=null, writer=null, inputDone=null, outputDone=null, isConnected=false;
+const term        = document.getElementById('terminalWin');
+const statusBadge = document.getElementById('statusBadge');
+const statusText  = document.getElementById('statusText');
+const btnConnect  = document.getElementById('btnConnect');
+let currentSliders = {0:90};
+let activeAxes = [0];
 
-        function logTerm(text, type = '') {
-            const div = document.createElement('div');
-            div.className = `log-line ${type}`;
-            div.textContent = text;
-            term.appendChild(div);
-            term.scrollTop = term.scrollHeight;
-            
-            // Cap scroll buffer at 300 lines
-            while (term.children.length > 300) {
-                term.removeChild(term.firstChild);
-            }
-        }
+// Command History
+let cmdHistory = [];
+let historyIdx = -1;
 
-        function clearTerminal() {
-            term.innerHTML = '';
-            logTerm("Terminal cleared.", "warn");
-        }
-
-        async function toggleConnection() {
-            if (isConnected) {
-                await disconnectSerial();
-            } else {
-                await connectSerial();
-            }
-        }
-
-        async function connectSerial() {
-            if (!('serial' in navigator)) {
-                alert("Web Serial API is not supported in your browser! Please open index.html in Google Chrome or Microsoft Edge.");
-                return;
-            }
-
-            try {
-                const baud = parseInt(document.getElementById('baudSelect').value);
-                port = await navigator.serial.requestPort();
-                await port.open({ baudRate: baud });
-
-                isConnected = true;
-                statusBadge.className = "status-badge connected";
-                statusText.textContent = "USB CONNECTED";
-                btnConnect.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Disconnect`;
-                btnConnect.classList.add('btn-ghost');
-
-                logTerm(`Successfully opened COM port at ${baud} baud.`, "ok");
-
-                // Setup Writer
-                const encoder = new TextEncoderStream();
-                outputDone = encoder.readable.pipeTo(port.writable);
-                writer = encoder.writable.getWriter();
-
-                // Setup Reader loop
-                readLoop();
-
-                // Request initial status
-                setTimeout(() => sendSerial("status"), 300);
-
-            } catch (err) {
-                logTerm(`Connection error: ${err.message}`, "err");
-            }
-        }
-
-        async function disconnectSerial() {
-            try {
-                if (reader) {
-                    await reader.cancel();
-                }
-                if (writer) {
-                    await writer.close();
-                }
-                await inputDone;
-                await outputDone;
-                await port.close();
-            } catch (e) {}
-
-            isConnected = false;
-            port = null;
-            statusBadge.className = "status-badge";
-            statusText.textContent = "DISCONNECTED";
-            btnConnect.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77 0"/></svg> Connect USB Arm`;
-            btnConnect.classList.remove('btn-ghost');
-
-            logTerm("Serial port closed.", "warn");
-        }
-
-        async function readLoop() {
-            const decoder = new TextDecoderStream();
-            inputDone = port.readable.pipeTo(decoder.writable);
-            const inputStream = decoder.readable;
-            reader = inputStream.getReader();
-
-            let buffer = '';
-
-            try {
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += value;
-                    let lines = buffer.split('\n');
-                    buffer = lines.pop(); // keep unfinished fragment in buffer
-
-                    for (let line of lines) {
-                        line = line.trim();
-                        if (!line) continue;
-                        parseIncomingLine(line);
-                    }
-                }
-            } catch (err) {
-                logTerm(`Serial read disconnected: ${err.message}`, "err");
-            } finally {
-                reader.releaseLock();
-            }
-        }
-
-        // ── Incoming Telemetry Parser ──
-        function parseIncomingLine(line) {
-            // Determine styling
-            let type = 'rx';
-            if (line.includes('[ERROR]') || line.includes('[FAULT]')) type = 'err';
-            else if (line.includes('[INFO]') || line.includes('[OK]')) type = 'ok';
-            else if (line.includes('[CFG]') || line.includes('[CAL]')) type = 'warn';
-
-            logTerm(line, type);
-
-            // Parse [S0] or [S1] telemetry
-            // Example: [S0][RUN] pot=2122  ang= 66.8°  tvl=  +0.0  vel=  +0.0  raw=  +0.0  pid=  0.0  pulse=369  [HOLD]
-            // Example: [S0][IDLE] pot=2122  ang= 66.8°  raw= -0.1  filt= +1.1 deg/s  No target
-            let axisId = -1;
-            if (line.startsWith('[S0]')) axisId = 0;
-            else if (line.startsWith('[S1]')) axisId = 1;
-
-            if (axisId !== -1) {
-                // Extract fields using Regex
-                const potMatch = line.match(/pot=\s*(-?\d+)/);
-                const angMatch = line.match(/ang=\s*(-?[\d\.]+)°/);
-                const velMatch = line.match(/vel=\s*(-?[\d\.]+)/) || line.match(/filt=\s*(-?[\d\.]+)/);
-                const tvlMatch = line.match(/tvl=\s*(-?[\d\.]+)/);
-
-                if (potMatch) document.getElementById(`potS${axisId}`).textContent = potMatch[1];
-                if (angMatch) {
-                    const angVal = parseFloat(angMatch[1]);
-                    document.getElementById(`angS${axisId}`).textContent = `${angVal.toFixed(1)}°`;
-                    // Update visual bar (map 0-180 to 0-100%)
-                    const pct = Math.max(0, Math.min(100, (angVal / 180.0) * 100));
-                    document.getElementById(`barS${axisId}`).style.width = `${pct}%`;
-                }
-                if (velMatch) document.getElementById(`velS${axisId}`).textContent = velMatch[1];
-                if (tvlMatch) document.getElementById(`tvlS${axisId}`).textContent = tvlMatch[1];
-
-                // Update zone tag
-                if (line.includes('[HOLD]')) setZoneBadge(axisId, 'HOLD');
-                else if (line.includes('[MOVE]')) setZoneBadge(axisId, 'MOVE');
-                else if (line.includes('[ZTRANS]')) setZoneBadge(axisId, 'ZTRANS');
-                else if (line.includes('[IDLE]')) setZoneBadge(axisId, 'IDLE');
-            }
-        }
-
-        function setZoneBadge(id, state) {
-            const b = document.getElementById(`zoneS${id}`);
-            b.textContent = state;
-            b.className = `zone-badge ${state}`;
-        }
-
-        // ── Command Writers ──
-        async function sendSerial(cmd) {
-            if (!writer) {
-                logTerm("Cannot send command: USB arm disconnected.", "err");
-                return;
-            }
-            try {
-                await writer.write(cmd + '\n');
-                logTerm(`> ${cmd}`, "tx");
-            } catch (e) {
-                logTerm(`Send error: ${e.message}`, "err");
-            }
-        }
-
-        function handleManualInput(e) {
+function handleHistory(e) {
+    const inp = document.getElementById('manualInput');
+    if (!inp) return;
+    if (e.key === 'ArrowUp') {
+        if (cmdHistory.length > 0 && historyIdx > 0) {
             e.preventDefault();
-            const inp = document.getElementById('manualInput');
-            const val = inp.value.trim();
-            if (val) {
-                sendSerial(val);
-                inp.value = '';
-            }
+            historyIdx--;
+            inp.value = cmdHistory[historyIdx];
+            setTimeout(() => inp.selectionStart = inp.selectionEnd = inp.value.length, 0);
+        } else if (cmdHistory.length > 0 && historyIdx === 0) {
+            e.preventDefault();
         }
-
-        // Continuous Axis Sliders
-        function sliderInput(id, val) {
-            document.getElementById(`numS${id}`).value = val;
-            document.getElementById(`visualAngS${id}`).textContent = `Target: ${parseFloat(val).toFixed(1)}°`;
-        }
-
-        function sliderChange(id, val) {
-            let v = parseFloat(val);
-            v = Math.max(3, Math.min(177, v));
-            document.getElementById(`sliderS${id}`).value = v;
-            document.getElementById(`numS${id}`).value = v;
-            document.getElementById(`visualAngS${id}`).textContent = `Target: ${v.toFixed(1)}°`;
-            
-            sendSerial(`target ${id} ${v.toFixed(1)}`);
-        }
-
-        function nudge(id, deg) {
-            let cur = parseFloat(document.getElementById(`sliderS${id}`).value);
-            cur += deg;
-            sliderChange(id, cur);
-        }
-
-        function applyStop(id) {
-            const inp = document.getElementById(`stopInS${id}`);
-            const val = inp.value.trim();
-            if (!val) return;
-            sendSerial(`savestop ${id} ${val}`);
+    } else if (e.key === 'ArrowDown') {
+        if (historyIdx < cmdHistory.length - 1) {
+            e.preventDefault();
+            historyIdx++;
+            inp.value = cmdHistory[historyIdx];
+        } else if (historyIdx >= cmdHistory.length - 1) {
+            e.preventDefault();
+            historyIdx = cmdHistory.length;
             inp.value = '';
         }
+    }
+}
 
-        // Absolute Panel Controls (Ch 2-15)
-        function absAngleChange(val) {
-            document.getElementById('absAngDisp').textContent = `${val}°`;
-            const ch = document.getElementById('absChSelect').value;
-            sendSerial(`servo ${ch} ${val}`);
-        }
+// ── Telemetry filter ────────────────────────────────────────────────────────
+let filterTelemetry = true;
+function toggleTelemFilter() {
+    filterTelemetry = !filterTelemetry;
+    const badge = document.getElementById('telemFilterBadge');
+    const btn   = document.getElementById('btnTelemFilter');
+    if (filterTelemetry) {
+        badge.textContent='TELEM FILTERED'; badge.style.color='var(--text-green)';
+        badge.style.borderColor='rgba(0,235,139,0.3)'; badge.style.background='rgba(0,235,139,0.15)';
+        btn.textContent='Show All';
+    } else {
+        badge.textContent='RAW STREAM'; badge.style.color='var(--text-orange)';
+        badge.style.borderColor='rgba(255,126,95,0.3)'; badge.style.background='rgba(255,126,95,0.1)';
+        btn.textContent='Filter Telem';
+    }
+}
 
-        function sendAbsPwm() {
-            const ch = document.getElementById('absChSelect').value;
-            const val = document.getElementById('absPwmRaw').value;
-            if (!val) return;
-            sendSerial(`pwm ${ch} ${val}`);
-        }
+// ── rAF-batched terminal logger ─────────────────────────────────────────────
+let logQueue = [], logFlushScheduled = false;
 
-        function stopAbsCh() {
-            const ch = document.getElementById('absChSelect').value;
-            sendSerial(`stop ${ch}`);
+function logTerm(text, type='') {
+    logQueue.push({text, type});
+    if (!logFlushScheduled) {
+        logFlushScheduled = true;
+        requestAnimationFrame(flushLogQueue);
+    }
+}
+
+function flushLogQueue() {
+    logFlushScheduled = false;
+    if (!logQueue.length) return;
+    const frag = document.createDocumentFragment();
+    for (const {text, type} of logQueue) {
+        const d = document.createElement('div');
+        d.className = 'log-line ' + type;
+        d.textContent = text;
+        frag.appendChild(d);
+    }
+    logQueue = [];
+    term.appendChild(frag);
+    const excess = term.children.length - 300;
+    for (let i=0; i<excess; i++) term.removeChild(term.firstChild);
+    term.scrollTop = term.scrollHeight;
+}
+
+function clearTerminal() { term.innerHTML=''; logTerm('Terminal cleared.','warn'); }
+
+// ── Connection Management ────────────────────────────────────────────────────
+async function toggleConnection() {
+    isConnected ? await disconnectSerial() : await connectSerial();
+}
+
+async function connectSerial() {
+    if (!('serial' in navigator)) { alert('Web Serial API not supported. Use Chrome or Edge.'); return; }
+    try {
+        const baud = parseInt(document.getElementById('baudSelect').value);
+        port = await navigator.serial.requestPort();
+        await port.open({baudRate: baud});
+        const enc = new TextEncoderStream();
+        outputDone = enc.readable.pipeTo(port.writable);
+        writer = enc.writable.getWriter();
+        setConnectedUI(true, baud);
+        readLoop();
+        setTimeout(()=>sendSerial('status'), 300);
+    } catch(err) { logTerm('Connection error: '+err.message,'err'); }
+}
+
+function resetConnectionState() {
+    isConnected=false; port=null; reader=null; writer=null; inputDone=null; outputDone=null;
+    setConnectedUI(false);
+}
+
+function setConnectedUI(connected, baud=null) {
+    isConnected = connected;
+    if (connected) {
+        statusBadge.className='status-badge connected'; statusText.textContent='USB CONNECTED';
+        btnConnect.textContent='Disconnect';
+        btnConnect.classList.add('btn-ghost');
+        logTerm('Serial port opened at '+baud+' baud.','ok');
+    } else {
+        statusBadge.className='status-badge'; statusText.textContent='DISCONNECTED';
+        btnConnect.textContent='Connect USB Arm';
+        btnConnect.classList.remove('btn-ghost');
+        logTerm('Serial port closed.','warn');
+    }
+}
+
+async function disconnectSerial() {
+    try {
+        if (reader)     await reader.cancel();
+        if (writer)     await writer.close();
+        if (inputDone)  await inputDone.catch(()=>{});
+        if (outputDone) await outputDone.catch(()=>{});
+        if (port)       await port.close();
+    } catch(e) { console.warn('[disconnectSerial] cleanup error:', e); }
+    resetConnectionState();
+}
+
+async function readLoop() {
+    const dec = new TextDecoderStream();
+    inputDone = port.readable.pipeTo(dec.writable);
+    reader = dec.readable.getReader();
+    let buf = '';
+    try {
+        while (true) {
+            const {value, done} = await reader.read();
+            if (done) break;
+            buf += value;
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (let l of lines) { l=l.trim(); if(l) parseIncomingLine(l); }
         }
-    </script>
+    } catch(err) {
+        logTerm('Serial disconnected: '+err.message,'err');
+        console.warn('[readLoop] unexpected disconnect:', err);
+        resetConnectionState();
+    } finally { reader.releaseLock(); }
+}
+
+// ── Incoming Telemetry Parser ────────────────────────────────────────────────
+function parseIncomingLine(line) {
+    let type='rx';
+    if (line.includes('[ERROR]')||line.includes('[FAULT]')) type='err';
+    else if (line.includes('[INFO]')||line.includes('[OK]'))  type='ok';
+    else if (line.includes('[CFG]')||line.includes('[CAL]'))  type='warn';
+
+    const isTelem = (line.startsWith('[S') && line.includes(']')) &&
+                    (line.includes('pot=') || line.includes('ang=') || line.includes('[RUN]') || line.includes('[IDLE]') || line.includes('[HOLD]') || line.includes('[MOVE]') || line.includes('[ZTRANS]'));
+    if (!isTelem || !filterTelemetry || type==='err') logTerm(line, type);
+
+    const axisMatch = line.match(/^\[S(\d+)\]/);
+    if (axisMatch) {
+        const axisId = parseInt(axisMatch[1]);
+        if (!document.getElementById('cardS'+axisId)) return;
+
+        const potM = line.match(/pot=\s*(-?\d+)/);
+        const angM = line.match(/ang=\s*(-?[\d\.]+)°/);
+        const velM = line.match(/vel=\s*(-?[\d\.]+)/)||line.match(/filt=\s*(-?[\d\.]+)/);
+        const tvlM = line.match(/tvl=\s*(-?[\d\.]+)/);
+
+        if (potM && document.getElementById('potS'+axisId)) document.getElementById('potS'+axisId).textContent = potM[1];
+        if (angM && document.getElementById('angS'+axisId)) {
+            const a = parseFloat(angM[1]);
+            document.getElementById('angS'+axisId).textContent = a.toFixed(1)+'°';
+            document.getElementById('barS'+axisId).style.width = Math.max(0,Math.min(100,(a/180)*100))+'%';
+            recordActual(axisId, a);
+        }
+        if (velM && document.getElementById('velS'+axisId)) document.getElementById('velS'+axisId).textContent = velM[1];
+        if (tvlM && document.getElementById('tvlS'+axisId)) document.getElementById('tvlS'+axisId).textContent = tvlM[1];
+
+        if      (line.includes('[HOLD]'))  setZoneBadge(axisId,'HOLD');
+        else if (line.includes('[MOVE]'))  setZoneBadge(axisId,'MOVE');
+        else if (line.includes('[ZTRANS]'))setZoneBadge(axisId,'ZTRANS');
+        else if (line.includes('[IDLE]'))  setZoneBadge(axisId,'IDLE');
+    }
+}
+
+function setZoneBadge(id,state) {
+    const b=document.getElementById('zoneS'+id);
+    if (b) { b.textContent=state; b.className='zone-badge '+state; }
+}
+
+// ── Serial Send ─────────────────────────────────────────────────────────────
+async function sendSerial(cmd) {
+    if (!writer) { logTerm('Cannot send: USB arm disconnected.','err'); return; }
+    try { await writer.write(cmd+'\n'); logTerm('> '+cmd,'tx'); }
+    catch(e) { logTerm('Send error: '+e.message,'err'); }
+}
+
+function handleManualInput(e) {
+    e.preventDefault();
+    const inp=document.getElementById('manualInput');
+    if (!inp) return;
+    const v=inp.value.trim();
+    if(v){
+        sendSerial(v);
+        cmdHistory.push(v);
+        historyIdx = cmdHistory.length;
+        inp.value='';
+    }
+}
+
+// ── Axis Slider Controls ────────────────────────────────────────────────────
+function sliderInput(id,val) {
+    document.getElementById('numS'+id).value = val;
+    document.getElementById('sliderReadS'+id).textContent = parseFloat(val).toFixed(1)+'°';
+    document.getElementById('visualAngS'+id).textContent  = 'Target: '+parseFloat(val).toFixed(1)+'°';
+}
+
+function sliderChange(id,val) {
+    let v = Math.max(3,Math.min(177,parseFloat(val)));
+    document.getElementById('sliderS'+id).value = v;
+    document.getElementById('numS'+id).value    = v;
+    document.getElementById('sliderReadS'+id).textContent = v.toFixed(1)+'°';
+    document.getElementById('visualAngS'+id).textContent  = 'Target: '+v.toFixed(1)+'°';
+    currentSliders[id]=v;
+    recordTarget(id,v);
+    sendSerial('target '+id+' '+v.toFixed(1));
+}
+
+function applyStop(id) {
+    const v=document.getElementById('stopInS'+id).value.trim();
+    if(!v) return;
+    sendSerial('savestop '+id+' '+v);
+    document.getElementById('stopInS'+id).value='';
+}
+
+// ── Dynamic Joint Addition ──────────────────────────────────────────────────
+function addMoreJoint() {
+    const idEl = document.getElementById('newJointId');
+    if (!idEl) return;
+    const id = parseInt(idEl.value);
+    if (isNaN(id) || id < 1) {
+        alert('Please enter a valid Joint ID (>= 1).');
+        return;
+    }
+    const pin = document.getElementById('newJointPin').value || "35";
+    const ch = document.getElementById('newJointCh').value || "1";
+
+    if (document.getElementById('cardS'+id)) {
+        alert('Joint ' + id + ' is already active on the dashboard.');
+        return;
+    }
+
+    activeAxes.push(id);
+    currentSliders[id] = 90;
+    gData['s'+id+'t'] = {t:[], v:[]};
+    gData['s'+id+'a'] = {t:[], v:[]};
+    recordTarget(id, 90);
+
+    const color = id === 1 ? '#ff7e5f' : '#00eb8b';
+    SERIES.push({key:'s'+id+'t', color: color, dash:[], lw:2});
+    SERIES.push({key:'s'+id+'a', color: color, dash:[5,3], lw:1.5});
+
+    // Add legend item
+    const leg = document.getElementById('graphLegend');
+    const d1 = document.createElement('div'); d1.className='legend-item';
+    d1.innerHTML = `<div class="legend-dot" style="background:${color};"></div><span style="color:${color};">S${id} Target</span>`;
+    const d2 = document.createElement('div'); d2.className='legend-item';
+    d2.innerHTML = `<div class="legend-dot" style="background:${color};opacity:0.6;"></div><span style="color:${color};">S${id} Actual</span>`;
+    leg.appendChild(d1); leg.appendChild(d2);
+
+    const cardClass = id === 1 ? 'active-s1' : 'active-sn';
+    const tagColor  = id === 1 ? 'var(--text-orange)' : 'var(--text-green)';
+
+    const html = `
+        <div class="card ${cardClass}" id="cardS${id}">
+            <div class="card-header">
+                <div class="axis-info">
+                    <span class="axis-tag">AXIS ${id}</span>
+                    <div class="axis-title"><h2>Servo ${id} (Joint ${id})</h2><p>ADC Pin ${pin} // PCA Channel ${ch}</p></div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <span class="zone-badge" id="zoneS${id}">IDLE</span>
+                    <button class="btn btn-ghost" style="padding:0.35rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('reset ${id}')">RESET</button>
+                    <button class="btn btn-danger" style="padding:0.35rem 0.6rem;font-size:0.75rem;" onclick="sendSerial('stop ${id}')">E-STOP</button>
+                </div>
+            </div>
+            <div class="telemetry-grid">
+                <div class="telem-box"><span class="telem-label">POT ADC</span><span class="telem-val" id="potS${id}">----</span></div>
+                <div class="telem-box"><span class="telem-label">Angle</span><span class="telem-val" style="color:${tagColor};" id="angS${id}">--.-&#176;</span></div>
+                <div class="telem-box"><span class="telem-label">Meas Vel</span><span class="telem-val" id="velS${id}">--.-</span></div>
+                <div class="telem-box"><span class="telem-label">Target Vel</span><span class="telem-val" id="tvlS${id}">--.-</span></div>
+            </div>
+            <div class="pos-visualizer">
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">
+                    <span>0&#176;</span>
+                    <span id="visualAngS${id}" style="color:${tagColor};font-weight:600;">Target: 90.0&#176;</span>
+                    <span>180&#176;</span>
+                </div>
+                <div class="pos-bar-bg"><div class="pos-bar-fill" id="barS${id}" style="width:50%;"></div></div>
+            </div>
+            <div class="control-group">
+                <div class="control-header">
+                    <label>Target Position Setpoint</label>
+                    <div class="target-input-grp">
+                        <input type="number" id="numS${id}" value="90" min="3" max="177" step="1" onchange="sliderChange(${id},this.value)">
+                        <span>&#176;</span>
+                    </div>
+                </div>
+                <input type="range" id="sliderS${id}" min="3" max="177" value="90" step="0.5" oninput="sliderInput(${id},this.value)" onchange="sliderChange(${id},this.value)">
+                <div class="slider-readout">
+                    <span>3&#176; min</span>
+                    <span class="cur-val" id="sliderReadS${id}">90.0&#176;</span>
+                    <span>177&#176; max</span>
+                </div>
+            </div>
+            <div class="card-actions">
+                <div class="tune-grp">
+                    <label title="Neutral pulse where motor stays still">Neutral Pulse:</label>
+                    <input type="number" id="stopInS${id}" placeholder="369" style="width:70px;">
+                    <button class="btn btn-ghost" style="padding:0.4rem 0.8rem;font-size:0.8rem;" onclick="applyStop(${id})">Save Neutral</button>
+                </div>
+                <button class="btn" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="sendSerial('recal2 ${id}')">Wizard</button>
+            </div>
+        </div>
+    `;
+    document.getElementById('axesContainer').insertAdjacentHTML('beforeend', html);
+    logTerm(`Added control card for Joint ${id} (Pin ${pin}, Ch ${ch})`, 'ok');
+}
+
+// ── Angle Tracking Graph ─────────────────────────────────────────────────────
+const GRAPH_WIN_MS = 60000;
+const GRAPH_CAP    = 600;
+const gData = {
+    s0t:{t:[],v:[]}, s0a:{t:[],v:[]}
+};
+const SERIES = [
+    {key:'s0t',color:'#00f2fe',dash:[],    lw:2  },
+    {key:'s0a',color:'#4facfe',dash:[5,3], lw:1.5}
+];
+
+function pushPt(series,val) {
+    if (!series) return;
+    const now=Date.now();
+    series.t.push(now); series.v.push(val);
+    const cut=now-GRAPH_WIN_MS;
+    while(series.t.length&&series.t[0]<cut){series.t.shift();series.v.shift();}
+    if(series.t.length>GRAPH_CAP){series.t.shift();series.v.shift();}
+}
+function recordTarget(id,v){pushPt(gData['s'+id+'t'],v);}
+function recordActual(id,v){pushPt(gData['s'+id+'a'],v);}
+function clearGraph(){for(const s of Object.values(gData)){s.t=[];s.v=[];}}
+
+const gc  = document.getElementById('angleGraph');
+const gctx= gc.getContext('2d');
+
+function drawGraph() {
+    requestAnimationFrame(drawGraph);
+    const W=gc.clientWidth, H=gc.clientHeight;
+    if(gc.width!==W||gc.height!==H){gc.width=W;gc.height=H;}
+    gctx.clearRect(0,0,W,H);
+
+    const PL=42,PR=12,PT=10,PB=28;
+    const pw=W-PL-PR, ph=H-PT-PB;
+    const now=Date.now();
+
+    gctx.lineWidth=1;
+    gctx.font='11px "JetBrains Mono",monospace';
+    gctx.textAlign='right';
+    for(const deg of [0,30,60,90,120,150,180]){
+        const y=PT+ph-(deg/180)*ph;
+        gctx.strokeStyle='rgba(255,255,255,0.05)';
+        gctx.beginPath();gctx.moveTo(PL,y);gctx.lineTo(PL+pw,y);gctx.stroke();
+        gctx.fillStyle='rgba(139,155,180,0.8)';
+        gctx.fillText(deg+'°',PL-4,y+4);
+    }
+    gctx.textAlign='center';
+    gctx.fillStyle='rgba(139,155,180,0.7)';
+    for(let s=0;s<=60;s+=10){
+        const x=PL+(s/60)*pw;
+        gctx.fillText('-'+(60-s)+'s',x,H-8);
+    }
+
+    for(const s of SERIES){
+        const ser=gData[s.key];
+        if(!ser || ser.t.length<2) continue;
+        gctx.beginPath();
+        gctx.strokeStyle=s.color; gctx.lineWidth=s.lw;
+        gctx.setLineDash(s.dash);
+        gctx.globalAlpha=s.dash.length?0.65:1.0;
+        let first=true;
+        for(let i=0;i<ser.t.length;i++){
+            const x=PL+pw-((now-ser.t[i])/GRAPH_WIN_MS)*pw;
+            const y=PT+ph-(ser.v[i]/180)*ph;
+            first?(gctx.moveTo(x,y),first=false):gctx.lineTo(x,y);
+        }
+        gctx.stroke();
+    }
+    gctx.setLineDash([]); gctx.globalAlpha=1.0;
+}
+
+drawGraph();
+</script>
 </body>
 </html>

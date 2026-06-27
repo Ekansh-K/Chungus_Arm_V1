@@ -120,8 +120,8 @@ public:
     RecalPhase recalPhase = RECAL_IDLE;
 
     // Trajectory
-    float maxSpeedDegPerSec = 15.0f;
-    float accelDegS2 = 30.0f;
+    float maxSpeedDegPerSec = 12.0f;  // Tuned: was 15.0 — reduced to keep PI tracking margin
+    float accelDegS2 = 22.0f;           // Tuned: was 30.0 — gentler ramp prevents large vel error at start
     float finalTargetDeg = 90.0f;
     float currentPosDeg = 90.0f;
     float profileVelDegS = 0.0f;
@@ -135,15 +135,17 @@ public:
     unsigned long lastVelTimeMs = 0;
     float velIntegral = 0.0f;
     float velPidOut = 0.0f;
-    float Kp_vel = 0.4f;
-    float Ki_vel = 0.02f;
+    float Kp_vel = 0.75f;  // Tuned: was 0.4 — stronger braking torque to kill coast momentum
+    float Ki_vel = 0.012f; // Tuned: was 0.02 — slower integral growth, less windup on long slews
     // Time-constant for leaky integrator decay. Replaces the old per-tick 0.9f
     // factor so the memory length is independent of loop speed.
-    float velIntegralTauSec = 0.5f;
+    // Tuned: was 0.5s — shorter tau means windup bleeds away faster during deceleration,
+    // preventing overshoot on upward slews against gravity.
+    float velIntegralTauSec = 0.25f;
     // Smoothed velocity setpoint fed to PI — keeps smoothing upstream of the
     // closed loop so the post-PI EMA filter is no longer needed.
     float smoothedTgtVelDegS = 0.0f;
-    float velSmoothAlpha = 0.3f;   // how snappy the velocity reference is
+    float velSmoothAlpha = 0.45f;  // Tuned: was 0.3 — faster setpoint tracking reduces vel lag
     double pidSetpoint = 0;
     double pidInput = 0;
     double pidOutput = 0;
@@ -159,7 +161,7 @@ public:
     int brakeZoneADC = 150;
     int targetDecelADC = 400;
     double kGravity = 0.0;
-    int transzoneMult = 2;
+    int transzoneMult = 3;  // Tuned: was 2 — wider approach window (3×deadband) triggers earlier braking
     int sticBoostHold = 0;
     int velCutThr = 30;
 
